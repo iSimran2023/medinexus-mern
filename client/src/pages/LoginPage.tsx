@@ -1,39 +1,35 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import api from '../services/api';
 import '../styles/form.css';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
+    setLoading(true);
 
     try {
-      // For now, mocking the login call since backend routes aren't all set
-      // In a real scenario, this would be an API call
-      // const response = await api.post('/auth/login', { email, password });
+      const response = await api.post('/auth/login', { email, password });
+      const { token, user } = response.data;
       
-      // Mock Data for testing UI
-      if (email === 'admin@medinexus.com' && password === '123') {
-        login('mock_token', { id: '1', email, role: 'admin', name: 'System Admin' });
-        navigate('/admin');
-      } else if (email === 'doctor@medinexus.com' && password === '123') {
-        login('mock_token', { id: '2', email, role: 'doctor', name: 'Test Doctor' });
-        navigate('/doctor');
-      } else if (email === 'patient@medinexus.com' && password === '123') {
-        login('mock_token', { id: '3', email, role: 'patient', name: 'Test Patient' });
-        navigate('/patient');
-      } else {
-        setError('Invalid email or password. Use test credentials (e.g., admin@medinexus.com / 123)');
-      }
-    } catch (err) {
-      setError('An error occurred during login.');
+      login(token, user);
+      
+      if (user.role === 'admin') navigate('/admin');
+      else if (user.role === 'doctor') navigate('/doctor');
+      else navigate('/patient');
+    } catch (err: any) {
+      setError(err.response?.data?.message || 'Invalid email or password');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -70,7 +66,9 @@ const LoginPage: React.FC = () => {
             />
           </div>
           
-          <button type="submit" className="login-btn btn-primary">Login</button>
+          <button type="submit" className="login-btn btn-primary" disabled={loading}>
+            {loading ? 'Logging in...' : 'Login'}
+          </button>
         </form>
         
         <div className="footer-link">

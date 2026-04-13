@@ -1,23 +1,33 @@
 import React from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { UserRound, Users, BookOpen, CalendarDays } from 'lucide-react';
+import { useFetch } from '../hooks/useFetch';
+
+interface Stats {
+  doctors: number;
+  patients: number;
+  appointments: number;
+  sessions: number;
+}
 
 const AdminDashboard: React.FC = () => {
-  const stats = [
-    { label: 'Doctors', value: '1', icon: <UserRound /> },
-    { label: 'Patients', value: '2', icon: <Users /> },
-    { label: 'New Booking', value: '1', icon: <BookOpen /> },
-    { label: 'Today Sessions', value: '8', icon: <CalendarDays /> },
+  const { data: stats, loading } = useFetch<Stats>('/admin/stats');
+
+  const statConfig = [
+    { label: 'Doctors', value: stats?.doctors || 0, icon: <UserRound /> },
+    { label: 'Patients', value: stats?.patients || 0, icon: <Users /> },
+    { label: 'New Booking', value: stats?.appointments || 0, icon: <BookOpen /> },
+    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays /> },
   ];
 
   return (
     <DashboardLayout title="Status">
       <h2 style={{ fontSize: '20px', fontWeight: 600, marginBottom: '20px' }}>Status</h2>
       <div className="stats-grid">
-        {stats.map((stat, index) => (
+        {statConfig.map((stat, index) => (
           <div key={index} className="stat-card">
             <div>
-              <div className="stat-value">{stat.value}</div>
+              <div className="stat-value">{loading ? '...' : stat.value}</div>
               <div className="stat-label">{stat.label}</div>
             </div>
             <div className="stat-icon">{stat.icon}</div>
