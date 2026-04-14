@@ -60,3 +60,18 @@ export const addDoctor = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error adding doctor' });
   }
 };
+
+export const deleteDoctor = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const doctor = await Doctor.findById(id);
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+    await User.findByIdAndDelete(doctor.user);
+    await Doctor.findByIdAndDelete(id);
+
+    res.json({ message: 'Doctor deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting doctor' });
+  }
+};
