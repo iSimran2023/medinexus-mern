@@ -75,3 +75,41 @@ export const deleteDoctor = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error deleting doctor' });
   }
 };
+
+export const getSchedules = async (req: Request, res: Response) => {
+  try {
+    const schedules = await Schedule.find().populate({
+      path: 'doctor',
+      populate: { path: 'user', select: 'name' }
+    });
+    res.json(schedules);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching schedules' });
+  }
+};
+
+export const addSchedule = async (req: Request, res: Response) => {
+  try {
+    const { title, docid, date, time, nop } = req.body;
+    const newSchedule = await Schedule.create({
+      title,
+      doctor: docid,
+      date,
+      time,
+      maxAppointments: nop,
+    });
+    res.status(201).json(newSchedule);
+  } catch (err) {
+    res.status(500).json({ message: 'Error adding schedule' });
+  }
+};
+
+export const deleteSchedule = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Schedule.findByIdAndDelete(id);
+    res.json({ message: 'Schedule deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting schedule' });
+  }
+};
