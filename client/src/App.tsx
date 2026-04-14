@@ -5,6 +5,8 @@ import SignupPage from './pages/SignupPage';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminDoctors from './pages/AdminDoctors';
 import AdminSchedule from './pages/AdminSchedule';
+import PatientDashboard from './pages/PatientDashboard';
+import PatientSessions from './pages/PatientSessions';
 import './App.css';
 
 function App() {
@@ -17,6 +19,8 @@ function App() {
         <Route path="/admin" element={<AdminDashboard />} />
         <Route path="/admin/doctors" element={<AdminDoctors />} />
         <Route path="/admin/schedule" element={<AdminSchedule />} />
+        <Route path="/patient" element={<PatientDashboard />} />
+        <Route path="/patient/schedule" element={<PatientSessions />} />
       </Routes>
     </Router>
   );

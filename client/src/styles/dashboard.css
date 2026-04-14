@@ -222,3 +222,129 @@
   gap: 15px;
   margin-top: 20px;
 }
+
+.patient-welcome {
+  background: white;
+  border: 1px solid #ebebeb;
+  border-radius: 8px;
+  padding: 40px;
+  margin-bottom: 30px;
+  background-size: cover;
+  background-position: center;
+  position: relative;
+  overflow: hidden;
+}
+
+/* We'll use a CSS gradient as a fallback if the image isn't loaded */
+.patient-welcome {
+  background-image: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+}
+
+.welcome-text {
+  position: relative;
+  z-index: 2;
+}
+
+.welcome-sub {
+  font-size: 18px;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.welcome-main {
+  font-size: 42px;
+  color: var(--primary-color);
+  margin-bottom: 15px;
+}
+
+.welcome-desc {
+  max-width: 600px;
+  line-height: 1.6;
+  color: #555;
+  margin-bottom: 30px;
+}
+
+.search-section h3 {
+  font-size: 20px;
+  margin-bottom: 15px;
+}
+
+.search-box {
+  display: flex;
+  gap: 10px;
+  max-width: 600px;
+}
+
+.search-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 1.2fr 0.8fr;
+  gap: 30px;
+}
+
+.section-title {
+  font-size: 20px;
+  margin-bottom: 20px;
+  font-weight: 600;
+}
+
+.booking-number {
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--primary-color);
+  text-align: center;
+}
+
+.scrollable-table {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.sessions-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 25px;
+}
+
+.session-card {
+  background: white;
+  border: 1px solid #ebebeb;
+  border-radius: 8px;
+  padding: 25px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  transition: 0.3s;
+}
+
+.session-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.05);
+  border-color: var(--primary-color);
+}
+
+.session-info h3 {
+  margin: 0 0 15px;
+  color: #333;
+  font-size: 20px;
+}
+
+.info-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  color: #666;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.book-btn {
+  margin-top: 20px;
+  width: 100%;
+}
