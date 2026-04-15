@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import { useFetch } from '../hooks/useFetch';
 import { Plus, Eye, Trash2, Calendar } from 'lucide-react';
 import api from '../services/api';
 import '../styles/dashboard.css';
+import { useToast } from '../context/ToastContext';
 
 interface Schedule {
   _id: string;
@@ -28,6 +30,14 @@ const AdminSchedule: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'view'>('add');
   const [selectedSchedule, setSelectedSchedule] = useState<Schedule | null>(null);
+  const [searchTerm, setSearchTerm] = useState('');
+  const { showToast } = useToast();
+  
+  // Confirm Modal State
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState('');
+  const [pendingDeleteTitle, setPendingDeleteTitle] = useState('');
+
   const [formData, setFormData] = useState({
     title: '',
     docid: '',
@@ -52,38 +62,62 @@ const AdminSchedule: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string, title: string) => {
-    if (window.confirm(`Are you sure you want to delete session "${title}"?`)) {
-      try {
-        await api.delete(`/admin/schedules/${id}`);
-        setData(schedules?.filter(s => s._id !== id) || null);
-      } catch (err) {
-        alert('Error deleting schedule');
-      }
+  const handleDeleteClick = (id: string, title: string) => {
+    setPendingDeleteId(id);
+    setPendingDeleteTitle(title);
+    setIsConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/admin/schedules/${pendingDeleteId}`);
+      setData(schedules?.filter(s => s._id !== pendingDeleteId) || null);
+      showToast('Schedule deleted successfully', 'success');
+      setIsConfirmOpen(false);
+    } catch (err) {
+      showToast('Error deleting schedule', 'error');
     }
   };
+
+  const filteredSchedules = schedules?.filter(s => 
+    s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.doctor.user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
       await api.post('/admin/schedules', formData);
+      showToast('Schedule created successfully', 'success');
       window.location.reload();
-    } catch (err: any) {
-      alert(err.response?.data?.message || 'Error adding schedule');
+    } catch (err) {
+      showToast('Error creating schedule', 'error');
     }
   };
 
   return (
-    <DashboardLayout title="Schedule">
+    <DashboardLayout title="">
       <div className="content-header">
         <h2 className="heading-main">Schedule Manager</h2>
-        <button 
-          className="btn-primary btn button-icon" 
-          onClick={() => handleOpenModal('add')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Plus size={18} /> Add a Session
-        </button>
+        <div className="header-actions" style={{ display: 'flex', gap: '15px' }}>
+          <div className="search-box">
+            <input 
+              type="text" 
+              placeholder="Search by title or doctor..." 
+              className="input-text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: '300px' }}
+            />
+          </div>
+          <button 
+            className="btn-primary btn button-icon" 
+            onClick={() => handleOpenModal('add')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Plus size={18} /> Add a Session
+          </button>
+        </div>
       </div>
 
       <div className="table-container">
@@ -100,15 +134,15 @@ const AdminSchedule: React.FC = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
-            ) : schedules?.length === 0 ? (
+            ) : filteredSchedules?.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
                   <img src="/img/notfound.svg" width="150" alt="Not found" />
-                  <p>No sessions scheduled.</p>
+                  <p>No sessions found.</p>
                 </td>
               </tr>
             ) : (
-              schedules?.map((s) => (
+              filteredSchedules?.map((s) => (
                 <tr key={s._id}>
                   <td style={{ padding: '15px' }}>{s.title}</td>
                   <td>Dr. {s.doctor.user.name}</td>
@@ -117,7 +151,7 @@ const AdminSchedule: React.FC = () => {
                   <td>
                     <div className="action-btns">
                       <button onClick={() => handleOpenModal('view', s)} className="btn-primary-soft btn-sm"><Eye size={16} /></button>
-                      <button onClick={() => handleDelete(s._id, s.title)} className="btn-primary-soft btn-sm btn-danger"><Trash2 size={16} /></button>
+                      <button onClick={() => handleDeleteClick(s._id, s.title)} className="btn-primary-soft btn-sm btn-danger"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -196,12 +230,20 @@ const AdminSchedule: React.FC = () => {
           
           {modalMode !== 'view' && (
             <div className="form-actions">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="btn-primary-soft btn">Cancel</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="btn-cancel">Cancel</button>
               <button type="submit" className="btn-primary btn">Place Session</button>
             </div>
           )}
         </form>
       </Modal>
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Session"
+        message={`Are you sure you want to delete session "${pendingDeleteTitle}"? All current appointments for this session will also be invalidated.`}
+      />
     </DashboardLayout>
   );
 };

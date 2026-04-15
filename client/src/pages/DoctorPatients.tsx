@@ -9,16 +9,15 @@ interface Patient {
     name: string;
     email: string;
   };
-  nic: string;
-  dob: string;
   tel: string;
+  dob: string;
 }
 
 const DoctorPatients: React.FC = () => {
   const { data: patients, loading } = useFetch<Patient[]>('/doctor/patients');
 
   return (
-    <DashboardLayout title="My Patients">
+    <DashboardLayout title="">
       <div className="content-header">
         <h2 className="heading-main">My Patients</h2>
       </div>
@@ -27,8 +26,7 @@ const DoctorPatients: React.FC = () => {
         <table className="sub-table" style={{ width: '100%' }}>
           <thead>
             <tr>
-              <th className="table-headin">Name</th>
-              <th className="table-headin">NIC</th>
+              <th className="table-headin">Patient Name</th>
               <th className="table-headin">Telephone</th>
               <th className="table-headin">Email</th>
               <th className="table-headin">Date of Birth</th>
@@ -36,10 +34,10 @@ const DoctorPatients: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
+              <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
             ) : patients?.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
+                <td colSpan={4} style={{ textAlign: 'center', padding: '40px' }}>
                   <img src="/img/notfound.svg" width="150" alt="Not found" />
                   <p>No patients found.</p>
                 </td>
@@ -47,11 +45,10 @@ const DoctorPatients: React.FC = () => {
             ) : (
               patients?.map((patient) => (
                 <tr key={patient._id}>
-                  <td style={{ padding: '15px', fontWeight: 500 }}>{patient.user.name}</td>
-                  <td>{patient.nic}</td>
+                  <td style={{ padding: '15px', fontWeight: 600 }}>{patient.user.name}</td>
                   <td>{patient.tel}</td>
                   <td>{patient.user.email}</td>
-                  <td style={{ textAlign: 'center' }}>{new Date(patient.dob).toLocaleDateString()}</td>
+                  <td>{new Date(patient.dob).toLocaleDateString()}</td>
                 </tr>
               ))
             )}

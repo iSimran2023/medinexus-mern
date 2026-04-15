@@ -1,5 +1,5 @@
 import express from 'express';
-import { getStats, getDoctors, addDoctor, deleteDoctor, getSchedules, addSchedule, deleteSchedule } from '../controllers/adminController';
+import { getStats, getDoctors, addDoctor, deleteDoctor, getSchedules, addSchedule, deleteSchedule, getPatients, getAllAppointments } from '../controllers/adminController';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
@@ -16,5 +16,8 @@ router.delete('/doctors/:id', deleteDoctor);
 router.get('/schedules', getSchedules);
 router.post('/schedules', addSchedule);
 router.delete('/schedules/:id', deleteSchedule);
+
+router.get('/patients', getPatients);
+router.get('/appointments', getAllAppointments);
 
 export default router;

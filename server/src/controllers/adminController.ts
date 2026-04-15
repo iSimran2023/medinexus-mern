@@ -34,7 +34,7 @@ export const getDoctors = async (req: Request, res: Response) => {
 
 export const addDoctor = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, nic, tel, specialty } = req.body;
+    const { name, email, password, tel, specialty } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -50,7 +50,6 @@ export const addDoctor = async (req: Request, res: Response) => {
 
     const newDoctor = await Doctor.create({
       user: newUser._id,
-      nic,
       tel,
       specialty,
     });
@@ -111,5 +110,32 @@ export const deleteSchedule = async (req: Request, res: Response) => {
     res.json({ message: 'Schedule deleted successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Error deleting schedule' });
+  }
+};
+
+export const getPatients = async (req: Request, res: Response) => {
+  try {
+    const patients = await Patient.find().populate('user', 'name email');
+    res.json(patients);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching patients' });
+  }
+};
+
+export const getAllAppointments = async (req: Request, res: Response) => {
+  try {
+    const appointments = await Appointment.find()
+      .populate({
+        path: 'patient',
+        populate: { path: 'user', select: 'name' }
+      })
+      .populate({
+        path: 'schedule',
+        populate: { path: 'doctor', populate: { path: 'user', select: 'name' } }
+      })
+      .sort({ createdAt: -1 });
+    res.json(appointments);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching appointments' });
   }
 };

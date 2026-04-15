@@ -35,7 +35,7 @@ export const login = async (req: Request, res: Response) => {
 
 export const registerPatient = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, address, nic, dob, tel } = req.body;
+    const { email, password, name, address, dob, tel } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -52,7 +52,6 @@ export const registerPatient = async (req: Request, res: Response) => {
     await Patient.create({
       user: newUser._id,
       address,
-      nic,
       dob,
       tel,
     });
@@ -65,7 +64,7 @@ export const registerPatient = async (req: Request, res: Response) => {
 
 export const checkAuth = async (req: Request, res: Response) => {
   try {
-    const user = await User.findById(req.user.id).select('-password');
+    const user = await User.findById((req as any).user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
     res.json(user);
   } catch (err) {
@@ -76,7 +75,7 @@ export const checkAuth = async (req: Request, res: Response) => {
 export const updateProfile = async (req: Request, res: Response) => {
   try {
     const { name, email, currentPassword, newPassword } = req.body;
-    const user = await User.findById(req.user.id);
+    const user = await User.findById((req as any).user.id);
     if (!user) return res.status(404).json({ message: 'User not found' });
 
     if (email && email !== user.email) {

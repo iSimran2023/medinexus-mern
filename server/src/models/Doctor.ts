@@ -6,7 +6,6 @@ const doctorSchema = new mongoose.Schema({
     ref: 'User',
     required: true,
   },
-  nic: String,
   tel: String,
   specialty: {
     type: String,

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
 import { UserRound, Users, BookOpen, CalendarDays, Search } from 'lucide-react';
@@ -29,6 +30,14 @@ const PatientDashboard: React.FC = () => {
   const { user } = useAuth();
   const { data: stats } = useFetch<Stats>('/patient/stats');
   const { data: bookings } = useFetch<Booking[]>('/patient/bookings');
+  const [search, setSearch] = React.useState('');
+  const navigate = useNavigate();
+
+  const handleSearch = () => {
+    if (search.trim()) {
+      navigate(`/patient/schedule?search=${encodeURIComponent(search)}`);
+    }
+  };
 
   const statConfig = [
     { label: 'All Doctors', value: stats?.doctors || 0, icon: <UserRound /> },
@@ -38,7 +47,7 @@ const PatientDashboard: React.FC = () => {
   ];
 
   return (
-    <DashboardLayout title="Home">
+    <DashboardLayout title="Dashboard">
       <div className="patient-welcome">
         <div className="welcome-text">
           <p className="welcome-sub">Welcome!</p>
@@ -51,8 +60,20 @@ const PatientDashboard: React.FC = () => {
           <div className="search-section">
             <h3>Channel a Doctor Here</h3>
             <div className="search-box">
-              <input type="text" placeholder="Search Doctor and We will Find The Session Available" className="input-text" />
-              <button className="btn-primary btn search-btn"><Search size={18} /> Search</button>
+              <input 
+                type="text" 
+                placeholder="Search Doctor and We will Find The Session Available" 
+                className="input-text" 
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                onKeyPress={(e) => e.key === 'Enter' && handleSearch()}
+              />
+              <button 
+                className="btn-primary btn search-btn"
+                onClick={handleSearch}
+              >
+                <Search size={18} />
+              </button>
             </div>
           </div>
         </div>
@@ -93,9 +114,9 @@ const PatientDashboard: React.FC = () => {
                   bookings?.slice(0, 5).map((booking) => (
                     <tr key={booking._id}>
                       <td className="booking-number">{booking.appointmentNumber}</td>
-                      <td>{booking.schedule.title}</td>
-                      <td>Dr. {booking.schedule.doctor.user.name}</td>
-                      <td>{new Date(booking.schedule.date).toLocaleDateString()} {booking.schedule.time}</td>
+                      <td>{booking.schedule?.title || 'Untitled Session'}</td>
+                      <td>Dr. {booking.schedule?.doctor?.user?.name || 'Unknown'}</td>
+                      <td>{booking.schedule ? `${new Date(booking.schedule.date).toLocaleDateString()} ${booking.schedule.time}` : '-'}</td>
                     </tr>
                   ))
                 )}

@@ -31,7 +31,7 @@ export const getDoctorStats = async (req: Request, res: Response) => {
 
 export const getMySessions = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
     const doctor = await Doctor.findOne({ user: userId });
     if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
 
@@ -46,7 +46,7 @@ export const getMySessions = async (req: Request, res: Response) => {
 
 export const getMyUpcomingAppointments = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
     const doctor = await Doctor.findOne({ user: userId });
     
     const appointments = await Appointment.find()
@@ -82,7 +82,7 @@ export const cancelAppointment = async (req: Request, res: Response) => {
 
 export const getMyPatients = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
     const doctor = await Doctor.findOne({ user: userId });
     
     // Find all appointments for this doctor's schedules

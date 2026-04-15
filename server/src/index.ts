@@ -8,6 +8,7 @@ dotenv.config();
 import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import patientRoutes from './routes/patientRoutes';
+import doctorRoutes from './routes/doctorRoutes';
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -20,6 +21,7 @@ app.use(express.json());
 app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/patient', patientRoutes);
+app.use('/api/doctor', doctorRoutes);
 
 app.get('/', (req, res) => {
   res.send('MediNexus API is running...');

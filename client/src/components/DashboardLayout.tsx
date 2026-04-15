@@ -16,9 +16,8 @@ const DashboardLayout: React.FC<DashboardLayoutProps> = ({ children, title }) =>
       <Sidebar />
       <main className="main-content">
         <header className="top-bar">
-          <div className="search-bar">
-            <input type="text" className="input-text" placeholder="Search..." />
-            <button className="btn-primary-soft btn">Search</button>
+          <div className="page-info">
+            <h1 style={{ fontSize: '20px', margin: 0 }}>{title}</h1>
           </div>
           <div className="date-section">
             <div>

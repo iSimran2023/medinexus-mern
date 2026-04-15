@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import api from '../services/api';
 import '../styles/form.css';
+import { useToast } from '../context/ToastContext';
 
 const LoginPage: React.FC = () => {
   const [email, setEmail] = useState('');
@@ -11,6 +12,7 @@ const LoginPage: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const { login } = useAuth();
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -26,8 +28,10 @@ const LoginPage: React.FC = () => {
       if (user.role === 'admin') navigate('/admin');
       else if (user.role === 'doctor') navigate('/doctor');
       else navigate('/patient');
+      showToast('Welcome back!', 'success');
     } catch (err: any) {
       setError(err.response?.data?.message || 'Invalid email or password');
+      showToast(err.response?.data?.message || 'Login failed', 'error');
     } finally {
       setLoading(false);
     }

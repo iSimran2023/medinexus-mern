@@ -9,7 +9,7 @@ export const getPatientStats = async (req: Request, res: Response) => {
     const doctorCount = await Doctor.countDocuments();
     const patientCount = await Patient.countDocuments();
     const appointmentCount = await Appointment.countDocuments({
-      date: { $gte: new Date() }
+      createdAt: { $gte: new Date(new Date().setHours(0,0,0,0)) }
     });
     const todaySessions = await Schedule.countDocuments({
       date: { 
@@ -31,7 +31,7 @@ export const getPatientStats = async (req: Request, res: Response) => {
 
 export const getMyBookings = async (req: Request, res: Response) => {
   try {
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
     const patient = await Patient.findOne({ user: userId });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
@@ -51,13 +51,22 @@ export const getMyBookings = async (req: Request, res: Response) => {
 export const bookAppointment = async (req: Request, res: Response) => {
   try {
     const { scheduleId } = req.body;
-    const userId = req.user.id;
+    const userId = (req as any).user.id;
 
     const patient = await Patient.findOne({ user: userId });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
     const schedule = await Schedule.findById(scheduleId);
     if (!schedule) return res.status(404).json({ message: 'Schedule not found' });
+
+    // Check for duplicate booking
+    const existingBooking = await Appointment.findOne({ 
+      patient: patient._id, 
+      schedule: scheduleId 
+    });
+    if (existingBooking) {
+      return res.status(400).json({ message: 'You have already booked this session' });
+    }
 
     // Calculate appointment number
     const bookingCount = await Appointment.countDocuments({ schedule: scheduleId });
@@ -74,5 +83,31 @@ export const bookAppointment = async (req: Request, res: Response) => {
     res.status(201).json(newAppointment);
   } catch (err) {
     res.status(500).json({ message: 'Error booking appointment' });
+  }
+};
+
+export const getSessions = async (req: Request, res: Response) => {
+  try {
+    const sessions = await Schedule.find({
+      date: { $gte: new Date(new Date().setHours(0,0,0,0)) }
+    })
+    .populate({
+      path: 'doctor',
+      populate: { path: 'user', select: 'name' }
+    })
+    .sort({ date: 1 });
+    
+    res.json(sessions);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching sessions' });
+  }
+};
+
+export const getAllDoctors = async (req: Request, res: Response) => {
+  try {
+    const doctors = await Doctor.find().populate('user', 'name email');
+    res.json(doctors);
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching doctors' });
   }
 };

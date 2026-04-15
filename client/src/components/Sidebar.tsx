@@ -1,5 +1,5 @@
 import React from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { 
   LayoutDashboard, 
   UserRound, 
@@ -14,6 +14,12 @@ import '../styles/dashboard.css';
 const Sidebar: React.FC = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/');
+  };
 
   const getMenuItems = () => {
     const common = [
@@ -58,7 +64,7 @@ const Sidebar: React.FC = () => {
           <p className="profile-name">{user?.name}</p>
           <p className="profile-email">{user?.email}</p>
         </div>
-        <button onClick={logout} className="logout-btn">
+        <button onClick={handleLogout} className="logout-btn">
           <LogOut size={16} /> Log out
         </button>
       </div>

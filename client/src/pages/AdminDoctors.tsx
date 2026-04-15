@@ -1,11 +1,13 @@
 import React, { useState } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import Modal from '../components/Modal';
+import ConfirmModal from '../components/ConfirmModal';
 import { useFetch } from '../hooks/useFetch';
 import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
 import { specialties } from '../constants/specialties';
 import api from '../services/api';
 import '../styles/dashboard.css';
+import { useToast } from '../context/ToastContext';
 
 interface Doctor {
   _id: string;
@@ -14,24 +16,35 @@ interface Doctor {
     email: string;
   };
   specialty: string;
-  nic: string;
   tel: string;
 }
 
 const AdminDoctors: React.FC = () => {
   const { data: doctors, loading, setData } = useFetch<Doctor[]>('/admin/doctors');
+  const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'view' | 'edit'>('add');
   const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
+  const { showToast } = useToast();
+  
+  // Confirm Modal State
+  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState('');
+
   const [formData, setFormData] = useState({
     name: '',
     email: '',
-    nic: '',
     tel: '',
     specialty: specialties[0],
     password: '',
     confirmPassword: '',
   });
+
+  const filteredDoctors = doctors?.filter(d => 
+    d.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   const handleOpenModal = (mode: 'add' | 'view' | 'edit', doctor?: Doctor) => {
     setModalMode(mode);
@@ -40,7 +53,6 @@ const AdminDoctors: React.FC = () => {
       setFormData({
         name: doctor.user.name,
         email: doctor.user.email,
-        nic: doctor.nic,
         tel: doctor.tel,
         specialty: doctor.specialty,
         password: '',
@@ -50,7 +62,6 @@ const AdminDoctors: React.FC = () => {
       setFormData({
         name: '',
         email: '',
-        nic: '',
         tel: '',
         specialty: specialties[0],
         password: '',
@@ -60,14 +71,19 @@ const AdminDoctors: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const handleDelete = async (id: string, name: string) => {
-    if (window.confirm(`Are you sure you want to remove Dr. ${name}?`)) {
-      try {
-        await api.delete(`/admin/doctors/${id}`);
-        setData(doctors?.filter(d => d._id !== id) || null);
-      } catch (err) {
-        alert('Error deleting doctor');
-      }
+  const handleDeleteClick = (id: string) => {
+    setPendingDeleteId(id);
+    setIsConfirmOpen(true);
+  };
+
+  const confirmDelete = async () => {
+    try {
+      await api.delete(`/admin/doctors/${pendingDeleteId}`);
+      setData(doctors?.filter(d => d._id !== pendingDeleteId) || null);
+      showToast('Doctor removed successfully', 'success');
+      setIsConfirmOpen(false);
+    } catch (err) {
+      showToast('Error deleting doctor', 'error');
     }
   };
 
@@ -75,30 +91,42 @@ const AdminDoctors: React.FC = () => {
     e.preventDefault();
     if (modalMode === 'add') {
       if (formData.password !== formData.confirmPassword) {
-        alert('Passwords do not match');
+        showToast('Passwords do not match', 'error');
         return;
       }
       try {
-        const res = await api.post('/admin/doctors', formData);
-        // Refresh or add to list
-        window.location.reload(); // Simple refresh for now
+        await api.post('/admin/doctors', formData);
+        showToast('Doctor added successfully', 'success');
+        window.location.reload();
       } catch (err: any) {
-        alert(err.response?.data?.message || 'Error adding doctor');
+        showToast(err.response?.data?.message || 'Error adding doctor', 'error');
       }
     }
   };
 
   return (
-    <DashboardLayout title="Doctors">
+    <DashboardLayout title="">
       <div className="content-header">
         <h2 className="heading-main">Doctor Management</h2>
-        <button 
-          className="btn-primary btn button-icon" 
-          onClick={() => handleOpenModal('add')}
-          style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
-        >
-          <Plus size={18} /> Add New Doctor
-        </button>
+        <div className="header-actions" style={{ display: 'flex', gap: '15px' }}>
+          <div className="search-box">
+            <input 
+              type="text" 
+              placeholder="Search Doctors..." 
+              className="input-text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: '300px' }}
+            />
+          </div>
+          <button 
+            className="btn-primary btn button-icon" 
+            onClick={() => handleOpenModal('add')}
+            style={{ display: 'flex', alignItems: 'center', gap: '8px' }}
+          >
+            <Plus size={18} /> Add New Doctor
+          </button>
+        </div>
       </div>
 
       <div className="table-container">
@@ -114,7 +142,7 @@ const AdminDoctors: React.FC = () => {
           <tbody>
             {loading ? (
               <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
-            ) : doctors?.length === 0 ? (
+            ) : filteredDoctors?.length === 0 ? (
               <tr>
                 <td colSpan={4} style={{ textAlign: 'center', padding: '40px' }}>
                   <img src="/img/notfound.svg" width="150" alt="Not found" />
@@ -122,16 +150,16 @@ const AdminDoctors: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              doctors?.map((doc) => (
+              filteredDoctors?.map((doc) => (
                 <tr key={doc._id}>
                   <td style={{ padding: '15px' }}>{doc.user.name}</td>
                   <td>{doc.user.email}</td>
                   <td>{doc.specialty}</td>
                   <td>
                     <div className="action-btns">
-                      <button onClick={() => handleOpenModal('view', doc)} className="btn-primary-soft btn-sm"><Eye size={16} /></button>
-                      <button onClick={() => handleOpenModal('edit', doc)} className="btn-primary-soft btn-sm"><Edit size={16} /></button>
-                      <button onClick={() => handleDelete(doc._id, doc.user.name)} className="btn-primary-soft btn-sm btn-danger"><Trash2 size={16} /></button>
+                      <button onClick={() => handleOpenModal('view', doc)} className="btn-primary-soft btn-sm" title="View"><Eye size={16} /></button>
+                      <button onClick={() => handleOpenModal('edit', doc)} className="btn-primary-soft btn-sm" title="Edit"><Edit size={16} /></button>
+                      <button onClick={() => handleDeleteClick(doc._id)} className="btn-primary-soft btn-sm btn-danger" title="Delete"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -170,17 +198,6 @@ const AdminDoctors: React.FC = () => {
             />
           </div>
           <div className="form-row">
-            <div className="form-group">
-              <label className="form-label">NIC</label>
-              <input 
-                type="text" 
-                className="input-text" 
-                value={formData.nic} 
-                onChange={(e) => setFormData({...formData, nic: e.target.value})} 
-                required 
-                disabled={modalMode === 'view'}
-              />
-            </div>
             <div className="form-group">
               <label className="form-label">Telephone</label>
               <input 
@@ -230,12 +247,20 @@ const AdminDoctors: React.FC = () => {
           )}
           {modalMode !== 'view' && (
             <div className="form-actions">
-              <button type="button" onClick={() => setIsModalOpen(false)} className="btn-primary-soft btn">Cancel</button>
+              <button type="button" onClick={() => setIsModalOpen(false)} className="btn-cancel">Cancel</button>
               <button type="submit" className="btn-primary btn">{modalMode === 'add' ? 'Add Doctor' : 'Save Changes'}</button>
             </div>
           )}
         </form>
       </Modal>
+
+      <ConfirmModal 
+        isOpen={isConfirmOpen}
+        onClose={() => setIsConfirmOpen(false)}
+        onConfirm={confirmDelete}
+        title="Delete Doctor"
+        message="Are you sure you want to remove this doctor? This will also delete their associated user account and schedules."
+      />
     </DashboardLayout>
   );
 };

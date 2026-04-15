@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import '../styles/form.css';
 import api from '../services/api';
+import { useToast } from '../context/ToastContext';
 
 const SignupPage: React.FC = () => {
   const [formData, setFormData] = useState({
@@ -10,13 +11,13 @@ const SignupPage: React.FC = () => {
     confirmPassword: '',
     name: '',
     address: '',
-    nic: '',
     dob: '',
     tel: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -34,10 +35,11 @@ const SignupPage: React.FC = () => {
     setLoading(true);
     try {
       await api.post('/auth/register', formData);
-      alert('Registration successful! Please login.');
+      showToast('Registration successful! Please login.', 'success');
       navigate('/login');
     } catch (err: any) {
       setError(err.response?.data?.message || 'An error occurred during registration.');
+      showToast(err.response?.data?.message || 'Registration failed', 'error');
     } finally {
       setLoading(false);
     }
@@ -80,18 +82,6 @@ const SignupPage: React.FC = () => {
           
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
             <div className="form-group">
-              <label className="form-label">NIC</label>
-              <input 
-                type="text" 
-                name="nic"
-                className="input-text" 
-                placeholder="NIC Number"
-                value={formData.nic}
-                onChange={handleChange}
-                required 
-              />
-            </div>
-            <div className="form-group">
               <label className="form-label">Telephone</label>
               <input 
                 type="tel" 
@@ -100,6 +90,17 @@ const SignupPage: React.FC = () => {
                 placeholder="07XXXXXXXX"
                 value={formData.tel}
                 onChange={handleChange}
+                required 
+              />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Date of Birth</label>
+              <input 
+                type="date" 
+                className="input-text" 
+                name="dob" 
+                value={formData.dob} 
+                onChange={handleChange} 
                 required 
               />
             </div>

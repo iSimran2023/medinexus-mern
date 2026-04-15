@@ -10,15 +10,15 @@ const scheduleSchema = new mongoose.Schema({
     type: String,
     required: true,
   },
-  scheduledDate: {
+  date: {
     type: Date,
     required: true,
   },
-  scheduledTime: {
+  time: {
     type: String,
     required: true,
   },
-  maxPatients: {
+  maxAppointments: {
     type: Number,
     required: true,
     default: 1,

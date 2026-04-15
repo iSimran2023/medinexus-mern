@@ -1,9 +1,7 @@
 import React, { useState } from 'react';
 import DashboardLayout from '../components/DashboardLayout';
-import ConfirmModal from '../components/ConfirmModal';
 import { useFetch } from '../hooks/useFetch';
-import { Trash2 } from 'lucide-react';
-import api from '../services/api';
+import { Search } from 'lucide-react';
 import '../styles/dashboard.css';
 
 interface Appointment {
@@ -16,34 +14,39 @@ interface Appointment {
     title: string;
     date: string;
     time: string;
+    doctor: {
+      user: { name: string };
+    };
   };
 }
 
-const DoctorAppointments: React.FC = () => {
-  const { data: appointments, loading, setData } = useFetch<Appointment[]>('/doctor/appointments');
+const AdminAppointments: React.FC = () => {
+  const { data: appointments, loading } = useFetch<Appointment[]>('/admin/appointments');
+  const [searchTerm, setSearchTerm] = useState('');
   
-  // Modal State
-  const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [pendingCancelId, setPendingCancelId] = useState('');
-
-  const handleCancelClick = (id: string) => {
-    setPendingCancelId(id);
-    setIsConfirmOpen(true);
-  };
-
-  const confirmCancel = async () => {
-    try {
-      await api.delete(`/doctor/appointments/${pendingCancelId}`);
-      setData(appointments?.filter(a => a._id !== pendingCancelId) || null);
-    } catch (err) {
-      alert('Error cancelling appointment');
-    }
-  };
+  const filteredAppointments = appointments?.filter(a => 
+    a.patient.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.schedule.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    a.schedule.doctor.user.name.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   return (
     <DashboardLayout title="">
       <div className="content-header">
         <h2 className="heading-main">Appointment Manager</h2>
+        <div className="header-actions">
+          <div className="search-box" style={{ display: 'flex', gap: '10px' }}>
+            <input 
+              type="text" 
+              placeholder="Search by patient, doctor or session..." 
+              className="input-text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              style={{ width: '350px' }}
+            />
+            <button className="btn-primary btn button-icon"><Search size={18} /></button>
+          </div>
+        </div>
       </div>
 
       <div className="table-container">
@@ -52,15 +55,15 @@ const DoctorAppointments: React.FC = () => {
             <tr>
               <th className="table-headin">Patient Name</th>
               <th className="table-headin">Appoint. Number</th>
+              <th className="table-headin">Doctor</th>
               <th className="table-headin">Session Title</th>
               <th className="table-headin">Session Date & Time</th>
-              <th className="table-headin">Events</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
-            ) : appointments?.length === 0 ? (
+            ) : filteredAppointments?.length === 0 ? (
               <tr>
                 <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
                   <img src="/img/notfound.svg" width="150" alt="Not found" />
@@ -68,20 +71,16 @@ const DoctorAppointments: React.FC = () => {
                 </td>
               </tr>
             ) : (
-              appointments?.map((app) => (
+              filteredAppointments?.map((app) => (
                 <tr key={app._id}>
                   <td style={{ padding: '15px', fontWeight: 600 }}>{app.patient.user.name}</td>
-                  <td style={{  fontSize: '20px', fontWeight: 500, color: 'var(--primary-color)' }}>
+                  <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
                     {app.appointmentNumber}
                   </td>
+                  <td>Dr. {app.schedule.doctor.user.name}</td>
                   <td>{app.schedule.title}</td>
                   <td>
                     {new Date(app.schedule.date).toLocaleDateString()} @{app.schedule.time}
-                  </td>
-                  <td>
-                    <div className="action-btns">
-                      <button onClick={() => handleCancelClick(app._id)} className="btn-primary-soft btn-sm btn-danger" title="Cancel"><Trash2 size={16} /></button>
-                    </div>
                   </td>
                 </tr>
               ))
@@ -89,16 +88,8 @@ const DoctorAppointments: React.FC = () => {
           </tbody>
         </table>
       </div>
-
-      <ConfirmModal 
-        isOpen={isConfirmOpen}
-        onClose={() => setIsConfirmOpen(false)}
-        onConfirm={confirmCancel}
-        title="Cancel Appointment"
-        message="Are you sure you want to cancel this appointment? This action will remove the patient from this session."
-      />
     </DashboardLayout>
   );
 };
 
-export default DoctorAppointments;
+export default AdminAppointments;
