@@ -28,15 +28,24 @@ app.get('/', (req, res) => {
 });
 
 // Database Connection
-const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/medinexus';
+const MONGODB_URI = process.env.MONGODB_URI;
 
-mongoose.connect(MONGODB_URI)
-  .then(() => {
-    console.log('Connected to MongoDB');
-    app.listen(PORT, () => {
-      console.log(`Server is running on port ${PORT}`);
+if (process.env.NODE_ENV !== 'production') {
+  mongoose.connect(MONGODB_URI || 'mongodb://localhost:27017/medinexus')
+    .then(() => {
+      console.log('Connected to MongoDB');
+      app.listen(PORT, () => {
+        console.log(`Server is running on port ${PORT}`);
+      });
+    })
+    .catch((err) => {
+      console.error('MongoDB connection error:', err);
     });
-  })
-  .catch((err) => {
-    console.error('MongoDB connection error:', err);
-  });
+} else {
+  // On Vercel, we connect to DB but don't app.listen (handled by Vercel)
+  mongoose.connect(MONGODB_URI as string)
+    .catch(err => console.error('DB Error:', err));
+}
+
+export default app;
+
