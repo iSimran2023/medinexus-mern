@@ -4,7 +4,7 @@ A modern MERN stack application designed to streamline the doctor-patient appoin
 
 ## Professional Final Year Project Details
 - **Project Name:** MediNexus Healthcare Ecosystem
-- **Developer:** [User Name]
+- **Developer:** Simran Pun
 - **Duration:** April 2026 - Present
 - **Stack:** MongoDB, Express, React, Node.js (MERN), TypeScript
 
