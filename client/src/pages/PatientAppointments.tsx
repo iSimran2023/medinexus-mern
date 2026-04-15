@@ -1,7 +1,6 @@
 import React from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useFetch } from '../hooks/useFetch';
-import { Calendar, Clock, User, Bookmark } from 'lucide-react';
 import '../styles/dashboard.css';
 
 interface Booking {

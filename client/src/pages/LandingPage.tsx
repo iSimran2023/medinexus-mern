@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Play, Activity, Users, ShieldCheck, Mail, Phone, MapPin } from 'lucide-react';
+import { Play, Activity, ShieldCheck, Mail, Phone, MapPin } from 'lucide-react';
 import '../styles/landing.css';
 
 const LandingPage: React.FC = () => {
@@ -75,7 +75,7 @@ const LandingPage: React.FC = () => {
             <span className="footer-logo">MediNexus.</span>
             <p>
               The unified healthcare network connecting thousands of patients with 
-              leading medical specialists. Quality care, delivered digitally.
+              specialists. Quality care, delivered digitally.
             </p>
           </div>
 
