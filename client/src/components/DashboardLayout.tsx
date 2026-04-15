@@ -1,6 +1,6 @@
 import React from 'react';
 import Sidebar from './Sidebar';
-import { Search, Calendar } from 'lucide-react';
+import { Calendar } from 'lucide-react';
 import '../styles/dashboard.css';
 
 interface DashboardLayoutProps {
