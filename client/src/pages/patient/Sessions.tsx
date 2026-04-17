@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD:client/src/pages/PatientSessions.tsx
 import { useLocation } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { useFetch } from '../hooks/useFetch';
@@ -6,45 +7,42 @@ import { Calendar, Clock, User } from 'lucide-react';
 import api from '../services/api';
 import '../styles/dashboard.css';
 import { useToast } from '../context/ToastContext';
+=======
+import { useLocation, useNavigate } from 'react-router-dom';
+import DashboardLayout from '../../components/DashboardLayout';
+import { useFetch } from '../../hooks/useFetch';
+import { Calendar, Clock, User, BookOpen } from 'lucide-react';
+import api from '../../services/api';
+import '../../styles/dashboard.css';
+import { useToast } from '../../context/ToastContext';
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/patient/Sessions.tsx
 
 interface Schedule {
-  _id: string;
+  id: string;
   title: string;
-  doctor: {
-    user: { name: string };
-    specialty: string;
-  };
+  doctorName: string;
+  doctorSpecialty: string;
   date: string;
   time: string;
   maxAppointments: number;
 }
 
-const PatientSessions: React.FC = () => {
+const Sessions: React.FC = () => {
   const { data: schedules, loading } = useFetch<Schedule[]>('/patient/sessions');
   const location = useLocation();
   const queryParams = new URLSearchParams(location.search);
   const initialSearch = queryParams.get('search') || '';
   const [searchTerm, setSearchTerm] = useState(initialSearch);
-  const [bookingLoading, setBookingLoading] = useState<string | null>(null);
-  const { showToast } = useToast();
+  const navigate = useNavigate();
 
   const filteredSchedules = schedules?.filter(s => 
     s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.doctor?.user?.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.doctor?.specialty?.toLowerCase().includes(searchTerm.toLowerCase())
+    s.doctorName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    s.doctorSpecialty?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  const handleBook = async (scheduleId: string) => {
-    setBookingLoading(scheduleId);
-    try {
-      await api.post('/patient/book', { scheduleId });
-      showToast('Appointment booked successfully!', 'success');
-      window.location.href = '/patient';
-    } catch (err: any) {
-      showToast(err.response?.data?.message || 'Error booking appointment', 'error');
-    } finally {
-      setBookingLoading(null);
-    }
+  const handleBook = (scheduleId: string) => {
+    navigate(`/patient/book/${scheduleId}`);
   };
 
   return (
@@ -69,19 +67,18 @@ const PatientSessions: React.FC = () => {
           <p>No sessions found matching your criteria.</p>
         ) : (
           filteredSchedules?.map((s) => (
-            <div key={s._id} className="session-card animate-in-bottom">
+            <div key={s.id} className="session-card animate-in-bottom">
               <div className="session-info">
                 <h3>{s.title}</h3>
-                <div className="info-item"><User size={16} /> Dr. {s.doctor?.user?.name || 'Unknown'} ({s.doctor?.specialty || 'General'})</div>
+                <div className="info-item"><User size={16} /> Dr. {s.doctorName} ({s.doctorSpecialty || 'General'})</div>
                 <div className="info-item"><Calendar size={16} /> {new Date(s.date).toLocaleDateString()}</div>
                 <div className="info-item"><Clock size={16} /> {s.time}</div>
               </div>
               <button 
                 className="btn-primary btn book-btn" 
-                onClick={() => handleBook(s._id)}
-                disabled={bookingLoading === s._id}
+                onClick={() => handleBook(s.id)}
               >
-                {bookingLoading === s._id ? 'Booking...' : 'Book Now'}
+                Book Now
               </button>
             </div>
           ))
@@ -91,4 +88,4 @@ const PatientSessions: React.FC = () => {
   );
 };
 
-export default PatientSessions;
+export default Sessions;

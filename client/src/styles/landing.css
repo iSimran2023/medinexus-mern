@@ -1,8 +1,8 @@
 @import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap');
 
 :root {
-  --primary: #0A76D8;
-  --primary-dark: #0056b3;
+  --primary: #005ad8;
+  --primary-dark: #004ab0;
   --secondary: #6366f1;
   --bg-gradient: linear-gradient(135deg, #f8f9ff 0%, #e8f0ff 100%);
   --text-main: #1e293b;

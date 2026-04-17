@@ -11,7 +11,8 @@ const ProfileSettings: React.FC = () => {
     email: '',
     currentPassword: '',
     newPassword: '',
-    confirmPassword: ''
+    confirmPassword: '',
+    document: null as File | null
   });
   const [message, setMessage] = useState('');
 
@@ -26,7 +27,11 @@ const ProfileSettings: React.FC = () => {
   }, [user]);
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setFormData({ ...formData, [e.target.name]: e.target.value });
+    if (e.target.name === 'document' && e.target.files) {
+      setFormData({ ...formData, document: e.target.files[0] });
+    } else {
+      setFormData({ ...formData, [e.target.name]: e.target.value });
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -105,6 +110,17 @@ const ProfileSettings: React.FC = () => {
               onChange={handleChange} 
               style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px' }}
             />
+          </div>
+          <div>
+            <label className="form-label" style={{ display: 'block', marginBottom: '8px' }}>Upload Medical Documents / ID:</label>
+            <input 
+              type="file" 
+              name="document" 
+              onChange={handleChange} 
+              style={{ width: '100%', padding: '10px', border: '1px solid #ccc', borderRadius: '4px', background: '#f8f9fa' }}
+              accept=".pdf,.jpg,.jpeg,.png"
+            />
+            <small style={{ color: '#666', marginTop: '4px', display: 'block' }}>Supported formats: PDF, JPG, PNG (Max 5MB)</small>
           </div>
           <button type="submit" className="btn-primary btn" style={{ marginTop: '10px', width: '100%' }}>Update Profile</button>
         </form>

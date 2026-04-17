@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
-import DashboardLayout from '../components/DashboardLayout';
+import DashboardLayout from '../../components/DashboardLayout';
 import { UserRound, Users, BookOpen, CalendarDays, ExternalLink } from 'lucide-react';
-import { useFetch } from '../hooks/useFetch';
+import { useFetch } from '../../hooks/useFetch';
 
 interface Stats {
   doctors: number;
@@ -11,20 +11,20 @@ interface Stats {
 }
 
 interface Appointment {
-  _id: string;
-  patient: { user: { name: string } };
-  schedule: { title: string; date: string };
+  id: string;
+  patientName: string;
+  scheduleTitle: string;
   appointmentNumber: number;
 }
 
 interface Schedule {
-  _id: string;
+  id: string;
   title: string;
-  doctor: { user: { name: string } };
+  doctorName: string;
   date: string;
 }
 
-const AdminDashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   const { data: stats, loading: statsLoading } = useFetch<Stats>('/admin/stats');
   const { data: appointments } = useFetch<Appointment[]>('/admin/appointments');
   const { data: schedules } = useFetch<Schedule[]>('/admin/schedules');
@@ -74,9 +74,9 @@ const AdminDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {appointments.slice(0, 5).map(app => (
-                    <tr key={app._id}>
-                      <td style={{ padding: '12px 20px' }}>{app.patient?.user?.name || 'Unknown'}</td>
-                      <td style={{ padding: '12px 20px' }}>{app.schedule?.title || 'Session'}</td>
+                    <tr key={app.id}>
+                      <td style={{ padding: '12px 20px' }}>{app.patientName || 'Unknown'}</td>
+                      <td style={{ padding: '12px 20px' }}>{app.scheduleTitle || 'Session'}</td>
                       <td style={{ padding: '12px 20px', fontWeight: 600 }}>{app.appointmentNumber}</td>
                     </tr>
                   ))}
@@ -113,9 +113,9 @@ const AdminDashboard: React.FC = () => {
                 </thead>
                 <tbody>
                   {schedules.slice(0, 5).map(sch => (
-                    <tr key={sch._id}>
+                    <tr key={sch.id}>
                       <td style={{ padding: '12px 20px' }}>{sch.title}</td>
-                      <td style={{ padding: '12px 20px' }}>Dr. {sch.doctor?.user?.name || 'Unknown'}</td>
+                      <td style={{ padding: '12px 20px' }}>Dr. {sch.doctorName || 'Unknown'}</td>
                       <td style={{ padding: '12px 20px' }}>{new Date(sch.date).toLocaleDateString()}</td>
                     </tr>
                   ))}
@@ -133,4 +133,4 @@ const AdminDashboard: React.FC = () => {
   );
 };
 
-export default AdminDashboard;
+export default Dashboard;

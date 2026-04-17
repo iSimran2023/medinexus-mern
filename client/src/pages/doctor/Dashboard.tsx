@@ -1,9 +1,9 @@
 import React from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import { useAuth } from '../context/AuthContext';
+import DashboardLayout from '../../components/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
 import { UserRound, Users, BookOpen, CalendarDays } from 'lucide-react';
-import { useFetch } from '../hooks/useFetch';
-import '../styles/dashboard.css';
+import { useFetch } from '../../hooks/useFetch';
+import '../../styles/dashboard.css';
 
 interface Stats {
   doctors: number;
@@ -13,19 +13,14 @@ interface Stats {
 }
 
 interface Appointment {
-  _id: string;
-  appointmentNumber: number;
-  patient: {
-    user: { name: string };
-  };
-  schedule: {
-    title: string;
-    date: string;
-    time: string;
-  };
+  id: string;
+  scheduleTitle: string;
+  patientName: string;
+  scheduleDate: string;
+  scheduleTime: string;
 }
 
-const DoctorDashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { data: stats } = useFetch<Stats>('/doctor/stats');
   const { data: appointments } = useFetch<Appointment[]>('/doctor/appointments');
@@ -85,10 +80,10 @@ const DoctorDashboard: React.FC = () => {
                   <tr><td colSpan={3} style={{ textAlign: 'center', padding: '20px' }}>No upcoming sessions found.</td></tr>
                 ) : (
                   appointments?.slice(0, 5).map((app) => (
-                    <tr key={app._id}>
-                      <td style={{ padding: '15px' }}>{app.schedule.title}</td>
-                      <td>{app.patient.user.name}</td>
-                      <td>{new Date(app.schedule.date).toLocaleDateString()} {app.schedule.time}</td>
+                    <tr key={app.id}>
+                      <td style={{ padding: '15px' }}>{app.scheduleTitle}</td>
+                      <td>{app.patientName}</td>
+                      <td>{new Date(app.scheduleDate).toLocaleDateString()} {app.scheduleTime}</td>
                     </tr>
                   ))
                 )}
@@ -101,4 +96,4 @@ const DoctorDashboard: React.FC = () => {
   );
 };
 
-export default DoctorDashboard;
+export default Dashboard;

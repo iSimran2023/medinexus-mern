@@ -3,19 +3,20 @@ import LandingPage from './pages/LandingPage';
 import AboutPage from './pages/AboutPage';
 import LoginPage from './pages/LoginPage';
 import SignupPage from './pages/SignupPage';
-import AdminDashboard from './pages/AdminDashboard';
-import AdminDoctors from './pages/AdminDoctors';
-import AdminSchedule from './pages/AdminSchedule';
-import AdminPatients from './pages/AdminPatients';
-import AdminAppointments from './pages/AdminAppointments';
-import PatientDashboard from './pages/PatientDashboard';
-import PatientSessions from './pages/PatientSessions';
-import PatientDoctors from './pages/PatientDoctors';
-import PatientAppointments from './pages/PatientAppointments';
-import DoctorDashboard from './pages/DoctorDashboard';
-import DoctorAppointments from './pages/DoctorAppointments';
-import DoctorSessions from './pages/DoctorSessions';
-import DoctorPatients from './pages/DoctorPatients';
+import AdminDashboard from './pages/admin/Dashboard';
+import AdminDoctors from './pages/admin/Doctors';
+import AdminSchedule from './pages/admin/Schedule';
+import AdminPatients from './pages/admin/Patients';
+import AdminAppointments from './pages/admin/Appointments';
+import PatientDashboard from './pages/patient/Dashboard';
+import PatientSessions from './pages/patient/Sessions';
+import PatientDoctors from './pages/patient/Doctors';
+import PatientAppointments from './pages/patient/Appointments';
+import PatientBookingForm from './pages/patient/BookingForm';
+import DoctorDashboard from './pages/doctor/Dashboard';
+import DoctorAppointments from './pages/doctor/Appointments';
+import DoctorSessions from './pages/doctor/Sessions';
+import DoctorPatients from './pages/doctor/Patients';
 import ProfileSettings from './pages/ProfileSettings';
 import './App.css';
 
@@ -36,6 +37,7 @@ function App() {
         <Route path="/patient/schedule" element={<PatientSessions />} />
         <Route path="/patient/doctors" element={<PatientDoctors />} />
         <Route path="/patient/appointments" element={<PatientAppointments />} />
+        <Route path="/patient/book/:scheduleId" element={<PatientBookingForm />} />
         <Route path="/doctor" element={<DoctorDashboard />} />
         <Route path="/doctor/appointments" element={<DoctorAppointments />} />
         <Route path="/doctor/schedule" element={<DoctorSessions />} />

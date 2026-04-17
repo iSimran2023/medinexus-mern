@@ -3,6 +3,7 @@ import Schedule from '../models/Schedule';
 import Appointment from '../models/Appointment';
 import Doctor from '../models/Doctor';
 import Patient from '../models/Patient';
+import { flattenAppointment, flattenDoctor, flattenSchedule } from '../utils/dataFlatteners';
 
 export const getPatientStats = async (req: Request, res: Response) => {
   try {
@@ -37,12 +38,16 @@ export const getMyBookings = async (req: Request, res: Response) => {
 
     const bookings = await Appointment.find({ patient: patient._id })
       .populate({
+        path: 'patient',
+        populate: { path: 'user', select: 'name email' }
+      })
+      .populate({
         path: 'schedule',
         populate: { path: 'doctor', populate: { path: 'user', select: 'name' } }
       })
       .sort({ createdAt: -1 });
 
-    res.json(bookings);
+    res.json(bookings.map(flattenAppointment));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching bookings' });
   }
@@ -50,7 +55,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
 
 export const bookAppointment = async (req: Request, res: Response) => {
   try {
-    const { scheduleId } = req.body;
+    const { scheduleId, medicalData, priority } = req.body;
     const userId = (req as any).user.id;
 
     const patient = await Patient.findOne({ user: userId });
@@ -68,7 +73,11 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'You have already booked this session' });
     }
 
-    // Calculate appointment number
+    // Calculate appointment number (Sequential FCFS)
+    const lastAppointment = await Appointment.findOne({ schedule: scheduleId }).sort({ appointmentNumber: -1 });
+    const nextNumber = lastAppointment ? lastAppointment.appointmentNumber + 1 : 1;
+    
+    // Check if session is full using count instead of number to be safe about slot availability
     const bookingCount = await Appointment.countDocuments({ schedule: scheduleId });
     if (bookingCount >= schedule.maxAppointments) {
       return res.status(400).json({ message: 'Session is full' });
@@ -77,10 +86,18 @@ export const bookAppointment = async (req: Request, res: Response) => {
     const newAppointment = await Appointment.create({
       patient: patient._id,
       schedule: scheduleId,
-      appointmentNumber: bookingCount + 1,
+      appointmentNumber: nextNumber,
+      medicalData,
+      priority: priority || 'Routine',
+      status: 'Pending',
     });
 
-    res.status(201).json(newAppointment);
+    const populated = await newAppointment.populate([
+      { path: 'patient', populate: { path: 'user', select: 'name email' } },
+      { path: 'schedule', populate: { path: 'doctor', populate: { path: 'user', select: 'name' } } }
+    ]);
+
+    res.status(201).json(flattenAppointment(populated));
   } catch (err) {
     res.status(500).json({ message: 'Error booking appointment' });
   }
@@ -97,7 +114,7 @@ export const getSessions = async (req: Request, res: Response) => {
     })
     .sort({ date: 1 });
     
-    res.json(sessions);
+    res.json(sessions.map(flattenSchedule));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching sessions' });
   }
@@ -106,7 +123,7 @@ export const getSessions = async (req: Request, res: Response) => {
 export const getAllDoctors = async (req: Request, res: Response) => {
   try {
     const doctors = await Doctor.find().populate('user', 'name email');
-    res.json(doctors);
+    res.json(doctors.map(flattenDoctor));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching doctors' });
   }

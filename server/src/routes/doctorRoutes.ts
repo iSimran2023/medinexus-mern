@@ -1,5 +1,5 @@
 import express from 'express';
-import { getDoctorStats, getMySessions, getMyUpcomingAppointments, cancelAppointment, getMyPatients } from '../controllers/doctorController';
+import { getDoctorStats, getMySessions, getMyUpcomingAppointments, cancelAppointment, getMyPatients, markAppointmentReviewed } from '../controllers/doctorController';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
@@ -12,5 +12,6 @@ router.get('/sessions', getMySessions);
 router.get('/appointments', getMyUpcomingAppointments);
 router.delete('/appointments/:id', cancelAppointment);
 router.get('/patients', getMyPatients);
+router.put('/appointments/:id/review', markAppointmentReviewed);
 
 export default router;

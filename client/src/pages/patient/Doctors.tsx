@@ -1,26 +1,31 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD:client/src/pages/PatientDoctors.tsx
 import DashboardLayout from '../components/DashboardLayout';
 import { useFetch } from '../hooks/useFetch';
 import { UserRound, Phone, Mail } from 'lucide-react';
 import '../styles/dashboard.css';
+=======
+import DashboardLayout from '../../components/DashboardLayout';
+import { useFetch } from '../../hooks/useFetch';
+import { UserRound, Search, Phone, Mail, Award } from 'lucide-react';
+import '../../styles/dashboard.css';
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/patient/Doctors.tsx
 
 interface Doctor {
-  _id: string;
-  user: {
-    name: string;
-    email: string;
-  };
+  id: string;
+  name: string;
+  email: string;
   specialty: string;
   tel: string;
 }
 
-const PatientDoctors: React.FC = () => {
+const Doctors: React.FC = () => {
   const { data: doctors, loading } = useFetch<Doctor[]>('/patient/doctors');
   const [searchTerm, setSearchTerm] = useState('');
 
-  const filteredDoctors = doctors?.filter(d => 
-    d.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+  const filteredDoctors = (doctors || []).filter(d => 
+    d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.specialty?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -41,22 +46,27 @@ const PatientDoctors: React.FC = () => {
       <div className="doctors-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '20px', marginTop: '20px' }}>
         {loading ? (
           <p>Loading doctors...</p>
-        ) : filteredDoctors?.length === 0 ? (
+        ) : filteredDoctors.length === 0 ? (
           <p>No doctors found.</p>
         ) : (
+<<<<<<< HEAD:client/src/pages/PatientDoctors.tsx
           filteredDoctors?.map((doc) => (
             <div key={doc._id} className="stat-card" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px', padding: '25px' }}>
+=======
+          filteredDoctors.map((doc) => (
+            <div key={doc.id} className="stat-card" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '15px', padding: '25px' }}>
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/patient/Doctors.tsx
               <div style={{ display: 'flex', gap: '15px', alignItems: 'center', width: '100%' }}>
                 <div className="stat-icon" style={{ margin: 0 }}><UserRound size={24} /></div>
                 <div>
-                  <h3 style={{ margin: 0, fontSize: '18px' }}>Dr. {doc.user.name}</h3>
+                  <h3 style={{ margin: 0, fontSize: '18px' }}>Dr. {doc.name}</h3>
                   <p style={{ margin: 0, color: 'var(--primary-color)', fontSize: '14px', fontWeight: 600 }}>{doc.specialty}</p>
                 </div>
               </div>
               
               <div style={{ width: '100%', borderTop: '1px solid var(--border-color)', paddingTop: '15px' }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: 'var(--text-sub)', marginBottom: '8px' }}>
-                  <Mail size={14} /> {doc.user.email}
+                  <Mail size={14} /> {doc.email}
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', fontSize: '14px', color: 'var(--text-sub)' }}>
                   <Phone size={14} /> {doc.tel}
@@ -78,4 +88,4 @@ const PatientDoctors: React.FC = () => {
   );
 };
 
-export default PatientDoctors;
+export default Doctors;

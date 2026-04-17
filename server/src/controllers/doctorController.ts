@@ -3,6 +3,7 @@ import Schedule from '../models/Schedule';
 import Appointment from '../models/Appointment';
 import Doctor from '../models/Doctor';
 import Patient from '../models/Patient';
+import { flattenAppointment, flattenPatient, flattenSchedule } from '../utils/dataFlatteners';
 
 export const getDoctorStats = async (req: Request, res: Response) => {
   try {
@@ -36,9 +37,13 @@ export const getMySessions = async (req: Request, res: Response) => {
     if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
 
     const sessions = await Schedule.find({ doctor: doctor._id })
+      .populate({
+        path: 'doctor',
+        populate: { path: 'user', select: 'name' }
+      })
       .sort({ date: 1 });
 
-    res.json(sessions);
+    res.json(sessions.map(flattenSchedule));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching sessions' });
   }
@@ -47,13 +52,20 @@ export const getMySessions = async (req: Request, res: Response) => {
 export const getMyUpcomingAppointments = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
+    const { status } = req.query; // Optional filter by status
     const doctor = await Doctor.findOne({ user: userId });
     
-    const appointments = await Appointment.find()
+    const query: any = {};
+    if (status) query.status = status;
+
+    const appointments = await Appointment.find(query)
       .populate({
         path: 'schedule',
         match: { doctor: doctor?._id },
-        populate: { path: 'doctor' }
+        populate: { 
+          path: 'doctor',
+          populate: { path: 'user', select: 'name' }
+        }
       })
       .populate({
         path: 'patient',
@@ -61,12 +73,43 @@ export const getMyUpcomingAppointments = async (req: Request, res: Response) => 
       })
       .sort({ createdAt: -1 });
 
-    // Filter out appointments where schedule was didn't match doctor
-    const filtered = appointments.filter(app => app.schedule !== null);
+    // Filter out appointments where schedule didn't match doctor
+    let filtered = appointments.filter(app => app.schedule !== null);
 
-    res.json(filtered);
+    // Sort by Priority (Emergency > Routine) and then by appointment number (FCFS)
+    const priorityWeight: { [key: string]: number } = {
+      'Emergency': 2,
+      'Routine': 1
+    };
+
+    filtered = filtered.sort((a, b) => {
+      // Primary sort: Priority weight (descending)
+      const pA = priorityWeight[a.priority as string] || 0;
+      const pB = priorityWeight[b.priority as string] || 0;
+      if (pA !== pB) return pB - pA;
+      
+      // Secondary sort: Appointment number (ascending)
+      return a.appointmentNumber - b.appointmentNumber;
+    });
+
+    res.json(filtered.map(flattenAppointment));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching appointments' });
+  }
+};
+
+export const markAppointmentReviewed = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const appointment = await Appointment.findByIdAndUpdate(
+      id,
+      { status: 'Reviewed' },
+      { new: true }
+    );
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    res.json({ message: 'Appointment marked as reviewed', appointment: flattenAppointment(appointment) });
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating appointment status' });
   }
 };
 
@@ -107,7 +150,7 @@ export const getMyPatients = async (req: Request, res: Response) => {
       }
     });
 
-    res.json(Array.from(patientsMap.values()));
+    res.json(Array.from(patientsMap.values()).map(flattenPatient));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching patients' });
   }

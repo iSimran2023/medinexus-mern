@@ -1,10 +1,16 @@
 import React from 'react';
+<<<<<<< HEAD:client/src/pages/PatientDashboard.tsx
 import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../components/DashboardLayout';
 import { useAuth } from '../context/AuthContext';
+=======
+import { useNavigate, useLocation } from 'react-router-dom';
+import DashboardLayout from '../../components/DashboardLayout';
+import { useAuth } from '../../context/AuthContext';
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/patient/Dashboard.tsx
 import { UserRound, Users, BookOpen, CalendarDays, Search } from 'lucide-react';
-import { useFetch } from '../hooks/useFetch';
-import '../styles/dashboard.css';
+import { useFetch } from '../../hooks/useFetch';
+import '../../styles/dashboard.css';
 
 interface Stats {
   doctors: number;
@@ -14,19 +20,15 @@ interface Stats {
 }
 
 interface Booking {
-  _id: string;
+  id: string;
   appointmentNumber: number;
-  schedule: {
-    title: string;
-    date: string;
-    time: string;
-    doctor: {
-      user: { name: string };
-    };
-  };
+  scheduleTitle: string;
+  doctorName: string;
+  scheduleDate: string;
+  scheduleTime: string;
 }
 
-const PatientDashboard: React.FC = () => {
+const Dashboard: React.FC = () => {
   const { user } = useAuth();
   const { data: stats } = useFetch<Stats>('/patient/stats');
   const { data: bookings } = useFetch<Booking[]>('/patient/bookings');
@@ -112,11 +114,11 @@ const PatientDashboard: React.FC = () => {
                   <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>Nothing to show here!</td></tr>
                 ) : (
                   bookings?.slice(0, 5).map((booking) => (
-                    <tr key={booking._id}>
+                    <tr key={booking.id}>
                       <td className="booking-number">{booking.appointmentNumber}</td>
-                      <td>{booking.schedule?.title || 'Untitled Session'}</td>
-                      <td>Dr. {booking.schedule?.doctor?.user?.name || 'Unknown'}</td>
-                      <td>{booking.schedule ? `${new Date(booking.schedule.date).toLocaleDateString()} ${booking.schedule.time}` : '-'}</td>
+                      <td>{booking.scheduleTitle || 'Untitled Session'}</td>
+                      <td>Dr. {booking.doctorName || 'Unknown'}</td>
+                      <td>{booking.scheduleDate ? `${new Date(booking.scheduleDate).toLocaleDateString()} ${booking.scheduleTime}` : '-'}</td>
                     </tr>
                   ))
                 )}
@@ -129,4 +131,4 @@ const PatientDashboard: React.FC = () => {
   );
 };
 
-export default PatientDashboard;
+export default Dashboard;

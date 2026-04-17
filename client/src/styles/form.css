@@ -56,7 +56,7 @@
 
 .input-text:focus {
   border-color: var(--primary-color);
-  box-shadow: 0 0 0 3px rgba(10, 118, 216, 0.1);
+  box-shadow: 0 0 0 3px rgba(0, 90, 216, 0.1);
 }
 
 .error-message {

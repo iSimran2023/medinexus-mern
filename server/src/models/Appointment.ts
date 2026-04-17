@@ -19,6 +19,21 @@ const appointmentSchema = new mongoose.Schema({
     type: Date,
     default: Date.now,
   },
+  medicalData: {
+    symptoms: String,
+    history: String,
+    documentName: String,
+  },
+  priority: {
+    type: String,
+    enum: ['Routine', 'Emergency'],
+    default: 'Routine',
+  },
+  status: {
+    type: String,
+    enum: ['Pending', 'Reviewed'],
+    default: 'Pending',
+  },
 }, {
   timestamps: true,
 });

@@ -1,12 +1,13 @@
 import React, { useState } from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import Modal from '../components/Modal';
-import { useFetch } from '../hooks/useFetch';
+import DashboardLayout from '../../components/DashboardLayout';
+import Modal from '../../components/Modal';
+import { useFetch } from '../../hooks/useFetch';
 import { Eye } from 'lucide-react';
-import '../styles/dashboard.css';
+import { LayoutGrid } from 'lucide-react';
+import '../../styles/dashboard.css';
 
 interface Schedule {
-  _id: string;
+  id: string;
   title: string;
   date: string;
   time: string;
@@ -14,18 +15,14 @@ interface Schedule {
 }
 
 interface Appointment {
-  _id: string;
+  id: string;
   appointmentNumber: number;
-  patient: {
-    user: { name: string; email: string };
-    tel: string;
-  };
-  schedule: {
-    _id: string;
-  };
+  patientName: string;
+  patientPhone: string;
+  scheduleId: string;
 }
 
-const DoctorSessions: React.FC = () => {
+const Sessions: React.FC = () => {
   const { data: sessions, loading } = useFetch<Schedule[]>('/doctor/sessions');
   const { data: allAppointments } = useFetch<Appointment[]>('/doctor/appointments');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -34,7 +31,7 @@ const DoctorSessions: React.FC = () => {
 
   const handleViewPatients = (session: Schedule) => {
     setSelectedSessionTitle(session.title);
-    const sessionApps = allAppointments?.filter(app => app.schedule?._id === session._id) || [];
+    const sessionApps = allAppointments?.filter(app => app.scheduleId === session.id) || [];
     setSelectedSessionApps(sessionApps);
     setIsModalOpen(true);
   };
@@ -61,14 +58,19 @@ const DoctorSessions: React.FC = () => {
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
             ) : sessions?.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
-                  <img src="/img/notfound.svg" width="150" alt="Not found" />
-                  <p>No sessions found.</p>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '80px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '50%', color: '#94a3b8' }}>
+                      <LayoutGrid size={48} strokeWidth={1.5} />
+                    </div>
+                    <div style={{ color: '#64748b', fontWeight: 500 }}>No sessions found.</div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>Your created sessions will appear here.</div>
+                  </div>
                 </td>
               </tr>
             ) : (
               sessions?.map((session) => (
-                <tr key={session._id}>
+                <tr key={session.id}>
                   <td style={{ padding: '15px', fontWeight: 500 }}>{session.title}</td>
                   <td>{new Date(session.date).toLocaleDateString()}</td>
                   <td>{session.time}</td>
@@ -114,12 +116,12 @@ const DoctorSessions: React.FC = () => {
                 </tr>
               ) : (
                 selectedSessionApps.sort((a, b) => a.appointmentNumber - b.appointmentNumber).map((app) => (
-                  <tr key={app._id}>
+                  <tr key={app.id}>
                     <td style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>
                       {app.appointmentNumber}
                     </td>
-                    <td style={{ padding: '10px' }}>{app.patient?.user?.name || 'Unknown'}</td>
-                    <td>{app.patient?.tel || '-'}</td>
+                    <td style={{ padding: '10px' }}>{app.patientName || 'Unknown'}</td>
+                    <td>{app.patientPhone || '-'}</td>
                   </tr>
                 ))
               )}
@@ -131,4 +133,4 @@ const DoctorSessions: React.FC = () => {
   );
 };
 
-export default DoctorSessions;
+export default Sessions;

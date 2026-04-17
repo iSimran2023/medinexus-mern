@@ -1,8 +1,8 @@
 :root {
   font-family: 'Outfit', 'Inter', system-ui, -apple-system, sans-serif;
-  --primary-color: #0c67b0;
-  --primary-color-soft: #e8f3fd;
-  --primary-color-hover: #0a5694;
+  --primary-color: #005ad8;
+  --primary-color-soft: #e0edff;
+  --primary-color-hover: #004ab0;
   --bg-color: #f8fafc;
   --text-main: #1e293b;
   --text-sub: #64748b;

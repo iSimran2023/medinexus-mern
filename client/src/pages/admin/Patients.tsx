@@ -1,26 +1,26 @@
 import React, { useState } from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import { useFetch } from '../hooks/useFetch';
-import { UserRound, Search } from 'lucide-react';
-import '../styles/dashboard.css';
+import DashboardLayout from '../../components/DashboardLayout';
+import { useFetch } from '../../hooks/useFetch';
+import { UserRound, Search, Users } from 'lucide-react';
+import '../../styles/dashboard.css';
 
 interface Patient {
-  _id: string;
-  user: {
-    name: string;
-    email: string;
-  };
+  id: string;
+  name: string;
+  email: string;
   tel: string;
+  address: string;
   dob: string;
+  gender: string;
 }
 
-const AdminPatients: React.FC = () => {
+const Patients: React.FC = () => {
   const { data: patients, loading } = useFetch<Patient[]>('/admin/patients');
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredPatients = patients?.filter(p => 
-    p.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    p.user.email.toLowerCase().includes(searchTerm.toLowerCase())
+    p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    p.email.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -48,7 +48,8 @@ const AdminPatients: React.FC = () => {
             <tr>
               <th className="table-headin">Name</th>
               <th className="table-headin">Telephone</th>
-              <th className="table-headin">Email</th>
+              <th className="table-headin">Address</th>
+              <th className="table-headin">Gender</th>
               <th className="table-headin">Date of Birth</th>
             </tr>
           </thead>
@@ -57,20 +58,26 @@ const AdminPatients: React.FC = () => {
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
             ) : filteredPatients?.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
-                  <img src="/img/notfound.svg" width="150" alt="Not found" />
-                  <p>No patients found.</p>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '80px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '50%', color: '#94a3b8' }}>
+                      <Users size={48} strokeWidth={1.5} />
+                    </div>
+                    <div style={{ color: '#64748b', fontWeight: 500 }}>No patients found.</div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>The central patient registry is currently empty.</div>
+                  </div>
                 </td>
               </tr>
             ) : (
               filteredPatients?.map((patient) => (
-                <tr key={patient._id}>
+                <tr key={patient.id}>
                   <td style={{ padding: '15px', fontWeight: 500, display: 'flex', alignItems: 'center', gap: '10px' }}>
                     <div className="doc-icon"><UserRound size={18} /></div>
-                    {patient.user.name}
+                    {patient.name}
                   </td>
                   <td>{patient.tel}</td>
-                  <td>{patient.user.email}</td>
+                  <td>{patient.address}</td>
+                  <td>{patient.gender || 'N/A'}</td>
                   <td>{new Date(patient.dob).toLocaleDateString()}</td>
                 </tr>
               ))
@@ -82,4 +89,4 @@ const AdminPatients: React.FC = () => {
   );
 };
 
-export default AdminPatients;
+export default Patients;

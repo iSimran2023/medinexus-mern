@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+<<<<<<< HEAD:client/src/pages/AdminSchedule.tsx
 import DashboardLayout from '../components/DashboardLayout';
 import Modal from '../components/Modal';
 import ConfirmModal from '../components/ConfirmModal';
@@ -7,24 +8,32 @@ import { Plus, Eye, Trash2 } from 'lucide-react';
 import api from '../services/api';
 import '../styles/dashboard.css';
 import { useToast } from '../context/ToastContext';
+=======
+import DashboardLayout from '../../components/DashboardLayout';
+import Modal from '../../components/Modal';
+import ConfirmModal from '../../components/ConfirmModal';
+import { useFetch } from '../../hooks/useFetch';
+import { Plus, Eye, Trash2, Calendar, LayoutGrid } from 'lucide-react';
+import api from '../../services/api';
+import '../../styles/dashboard.css';
+import { useToast } from '../../context/ToastContext';
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/admin/Schedule.tsx
 
 interface Schedule {
-  _id: string;
+  id: string;
   title: string;
-  doctor: {
-    user: { name: string };
-  };
+  doctorName: string;
   date: string;
   time: string;
   maxAppointments: number;
 }
 
 interface Doctor {
-  _id: string;
-  user: { name: string };
+  id: string;
+  name: string;
 }
 
-const AdminSchedule: React.FC = () => {
+const Schedule: React.FC = () => {
   const { data: schedules, loading, setData } = useFetch<Schedule[]>('/admin/schedules');
   const { data: doctors } = useFetch<Doctor[]>('/admin/doctors');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -53,7 +62,7 @@ const AdminSchedule: React.FC = () => {
     } else {
       setFormData({
         title: '',
-        docid: doctors?.[0]?._id || '',
+        docid: doctors?.[0]?.id || '',
         date: '',
         time: '',
         nop: 1,
@@ -71,7 +80,7 @@ const AdminSchedule: React.FC = () => {
   const confirmDelete = async () => {
     try {
       await api.delete(`/admin/schedules/${pendingDeleteId}`);
-      setData(schedules?.filter(s => s._id !== pendingDeleteId) || null);
+      setData(schedules?.filter(s => s.id !== pendingDeleteId) || null);
       showToast('Schedule deleted successfully', 'success');
       setIsConfirmOpen(false);
     } catch (err) {
@@ -81,15 +90,16 @@ const AdminSchedule: React.FC = () => {
 
   const filteredSchedules = schedules?.filter(s => 
     s.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    s.doctor.user.name.toLowerCase().includes(searchTerm.toLowerCase())
+    s.doctorName.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      await api.post('/admin/schedules', formData);
+      const response = await api.post('/admin/schedules', formData);
       showToast('Schedule created successfully', 'success');
-      window.location.reload();
+      setData(schedules ? [...schedules, response.data] : [response.data]);
+      setIsModalOpen(false);
     } catch (err) {
       showToast('Error creating schedule', 'error');
     }
@@ -136,22 +146,27 @@ const AdminSchedule: React.FC = () => {
               <tr><td colSpan={5} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
             ) : filteredSchedules?.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ textAlign: 'center', padding: '40px' }}>
-                  <img src="/img/notfound.svg" width="150" alt="Not found" />
-                  <p>No sessions found.</p>
+                <td colSpan={5} style={{ textAlign: 'center', padding: '80px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '50%', color: '#94a3b8' }}>
+                      <LayoutGrid size={48} strokeWidth={1.5} />
+                    </div>
+                    <div style={{ color: '#64748b', fontWeight: 500 }}>No sessions found.</div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>The scheduled medical sessions will appear here.</div>
+                  </div>
                 </td>
               </tr>
             ) : (
               filteredSchedules?.map((s) => (
-                <tr key={s._id}>
+                <tr key={s.id}>
                   <td style={{ padding: '15px' }}>{s.title}</td>
-                  <td>Dr. {s.doctor.user.name}</td>
+                  <td>Dr. {s.doctorName}</td>
                   <td>{new Date(s.date).toLocaleDateString()} {s.time}</td>
                   <td style={{ textAlign: 'center' }}>{s.maxAppointments}</td>
                   <td>
                     <div className="action-btns">
                       <button onClick={() => handleOpenModal('view', s)} className="btn-primary-soft btn-sm"><Eye size={16} /></button>
-                      <button onClick={() => handleDeleteClick(s._id, s.title)} className="btn-primary-soft btn-sm btn-danger"><Trash2 size={16} /></button>
+                      <button onClick={() => handleDeleteClick(s.id, s.title)} className="btn-primary-soft btn-sm btn-danger"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -182,13 +197,13 @@ const AdminSchedule: React.FC = () => {
             <label className="form-label">Select Doctor</label>
             <select 
               className="input-text" 
-              value={modalMode === 'add' ? formData.docid : selectedSchedule?.doctor.user.name} 
+              value={modalMode === 'add' ? formData.docid : selectedSchedule?.doctorName} 
               onChange={(e) => setFormData({...formData, docid: e.target.value})}
               required
               disabled={modalMode === 'view'}
             >
               <option value="" disabled>Choose Doctor</option>
-              {doctors?.map(d => <option key={d._id} value={d._id}>Dr. {d.user.name}</option>)}
+              {doctors?.map(d => <option key={d.id} value={d.id}>Dr. {d.name}</option>)}
             </select>
           </div>
           <div className="form-row">
@@ -248,4 +263,4 @@ const AdminSchedule: React.FC = () => {
   );
 };
 
-export default AdminSchedule;
+export default Schedule;

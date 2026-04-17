@@ -1,25 +1,24 @@
 import React, { useState } from 'react';
-import DashboardLayout from '../components/DashboardLayout';
-import Modal from '../components/Modal';
-import ConfirmModal from '../components/ConfirmModal';
-import { useFetch } from '../hooks/useFetch';
+import DashboardLayout from '../../components/DashboardLayout';
+import Modal from '../../components/Modal';
+import ConfirmModal from '../../components/ConfirmModal';
+import { useFetch } from '../../hooks/useFetch';
 import { Plus, Edit, Eye, Trash2 } from 'lucide-react';
-import { specialties } from '../constants/specialties';
-import api from '../services/api';
-import '../styles/dashboard.css';
-import { useToast } from '../context/ToastContext';
+import { specialties } from '../../constants/specialties';
+import api from '../../services/api';
+import '../../styles/dashboard.css';
+import { useToast } from '../../context/ToastContext';
 
 interface Doctor {
-  _id: string;
-  user: {
-    name: string;
-    email: string;
-  };
+  id: string;
+  name: string;
+  email: string;
   specialty: string;
   tel: string;
+  gender: string;
 }
 
-const AdminDoctors: React.FC = () => {
+const Doctors: React.FC = () => {
   const { data: doctors, loading, setData } = useFetch<Doctor[]>('/admin/doctors');
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -35,24 +34,26 @@ const AdminDoctors: React.FC = () => {
     email: '',
     tel: '',
     specialty: specialties[0],
+    gender: '',
     password: '',
     confirmPassword: '',
   });
 
   const filteredDoctors = doctors?.filter(d => 
-    d.user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    d.specialty.toLowerCase().includes(searchTerm.toLowerCase())
+    d.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.email?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    d.specialty?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   const handleOpenModal = (mode: 'add' | 'view' | 'edit', doctor?: Doctor) => {
     setModalMode(mode);
     if (doctor) {
       setFormData({
-        name: doctor.user.name,
-        email: doctor.user.email,
+        name: doctor.name,
+        email: doctor.email,
         tel: doctor.tel,
         specialty: doctor.specialty,
+        gender: doctor.gender || '',
         password: '',
         confirmPassword: '',
       });
@@ -62,6 +63,7 @@ const AdminDoctors: React.FC = () => {
         email: '',
         tel: '',
         specialty: specialties[0],
+        gender: '',
         password: '',
         confirmPassword: '',
       });
@@ -77,7 +79,7 @@ const AdminDoctors: React.FC = () => {
   const confirmDelete = async () => {
     try {
       await api.delete(`/admin/doctors/${pendingDeleteId}`);
-      setData(doctors?.filter(d => d._id !== pendingDeleteId) || null);
+      setData(doctors?.filter(d => d.id !== pendingDeleteId) || null);
       showToast('Doctor removed successfully', 'success');
       setIsConfirmOpen(false);
     } catch (err) {
@@ -93,11 +95,22 @@ const AdminDoctors: React.FC = () => {
         return;
       }
       try {
-        await api.post('/admin/doctors', formData);
+        const response = await api.post('/admin/doctors', formData);
         showToast('Doctor added successfully', 'success');
-        window.location.reload();
+        setData(doctors ? [...doctors, response.data] : [response.data]);
+        setIsModalOpen(false);
       } catch (err: any) {
         showToast(err.response?.data?.message || 'Error adding doctor', 'error');
+      }
+    } else if (modalMode === 'edit' && selectedDoctor) {
+      try {
+        await api.put(`/admin/doctors/${selectedDoctor.id}`, formData);
+        showToast('Doctor updated successfully', 'success');
+        setIsModalOpen(false);
+        // Refresh data
+        setData(doctors?.map(d => d.id === selectedDoctor.id ? { ...d, tel: formData.tel, specialty: formData.specialty, gender: formData.gender, name: formData.name, email: formData.email } : d) || null);
+      } catch (err: any) {
+        showToast(err.response?.data?.message || 'Error updating doctor', 'error');
       }
     }
   };
@@ -142,22 +155,27 @@ const AdminDoctors: React.FC = () => {
               <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
             ) : filteredDoctors?.length === 0 ? (
               <tr>
-                <td colSpan={4} style={{ textAlign: 'center', padding: '40px' }}>
-                  <img src="/img/notfound.svg" width="150" alt="Not found" />
-                  <p>No doctors found.</p>
+                <td colSpan={4} style={{ textAlign: 'center', padding: '80px 20px' }}>
+                  <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
+                    <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '50%', color: '#94a3b8' }}>
+                      <Plus size={48} strokeWidth={1.5} />
+                    </div>
+                    <div style={{ color: '#64748b', fontWeight: 500 }}>No doctors found.</div>
+                    <div style={{ color: '#94a3b8', fontSize: '13px' }}>Start by adding a new medical professional.</div>
+                  </div>
                 </td>
               </tr>
             ) : (
               filteredDoctors?.map((doc) => (
-                <tr key={doc._id}>
-                  <td style={{ padding: '15px' }}>{doc.user.name}</td>
-                  <td>{doc.user.email}</td>
+                <tr key={doc.id}>
+                  <td style={{ padding: '15px' }}>{doc.name}</td>
+                  <td>{doc.email}</td>
                   <td>{doc.specialty}</td>
                   <td>
                     <div className="action-btns">
                       <button onClick={() => handleOpenModal('view', doc)} className="btn-primary-soft btn-sm" title="View"><Eye size={16} /></button>
                       <button onClick={() => handleOpenModal('edit', doc)} className="btn-primary-soft btn-sm" title="Edit"><Edit size={16} /></button>
-                      <button onClick={() => handleDeleteClick(doc._id)} className="btn-primary-soft btn-sm btn-danger" title="Delete"><Trash2 size={16} /></button>
+                      <button onClick={() => handleDeleteClick(doc.id)} className="btn-primary-soft btn-sm btn-danger" title="Delete"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -206,6 +224,21 @@ const AdminDoctors: React.FC = () => {
                 required 
                 disabled={modalMode === 'view'}
               />
+            </div>
+            <div className="form-group">
+              <label className="form-label">Gender</label>
+              <select 
+                className="input-text" 
+                value={formData.gender} 
+                onChange={(e) => setFormData({...formData, gender: e.target.value})}
+                required
+                disabled={modalMode === 'view'}
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
             </div>
           </div>
           <div className="form-group">
@@ -263,4 +296,4 @@ const AdminDoctors: React.FC = () => {
   );
 };
 
-export default AdminDoctors;
+export default Doctors;

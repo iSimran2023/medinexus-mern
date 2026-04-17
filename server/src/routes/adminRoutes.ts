@@ -1,5 +1,5 @@
 import express from 'express';
-import { getStats, getDoctors, addDoctor, deleteDoctor, getSchedules, addSchedule, deleteSchedule, getPatients, getAllAppointments } from '../controllers/adminController';
+import { getStats, getDoctors, addDoctor, updateDoctor, deleteDoctor, getSchedules, addSchedule, deleteSchedule, getPatients, getAllAppointments, deleteAppointment } from '../controllers/adminController';
 import { authenticateToken, authorizeRoles } from '../middleware/auth';
 
 const router = express.Router();
@@ -11,6 +11,7 @@ router.use(authorizeRoles('admin'));
 router.get('/stats', getStats);
 router.get('/doctors', getDoctors);
 router.post('/doctors', addDoctor);
+router.put('/doctors/:id', updateDoctor);
 router.delete('/doctors/:id', deleteDoctor);
 
 router.get('/schedules', getSchedules);
@@ -19,5 +20,6 @@ router.delete('/schedules/:id', deleteSchedule);
 
 router.get('/patients', getPatients);
 router.get('/appointments', getAllAppointments);
+router.delete('/appointments/:id', deleteAppointment);
 
 export default router;

@@ -4,6 +4,7 @@ import Doctor from '../models/Doctor';
 import Patient from '../models/Patient';
 import Appointment from '../models/Appointment';
 import Schedule from '../models/Schedule';
+import { flattenAppointment, flattenDoctor, flattenPatient, flattenSchedule } from '../utils/dataFlatteners';
 
 export const getStats = async (req: Request, res: Response) => {
   try {
@@ -26,7 +27,7 @@ export const getStats = async (req: Request, res: Response) => {
 export const getDoctors = async (req: Request, res: Response) => {
   try {
     const doctors = await Doctor.find().populate('user', 'name email');
-    res.json(doctors);
+    res.json(doctors.map(flattenDoctor));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching doctors' });
   }
@@ -34,7 +35,7 @@ export const getDoctors = async (req: Request, res: Response) => {
 
 export const addDoctor = async (req: Request, res: Response) => {
   try {
-    const { name, email, password, tel, specialty } = req.body;
+    const { name, email, password, tel, specialty, gender } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -52,11 +53,37 @@ export const addDoctor = async (req: Request, res: Response) => {
       user: newUser._id,
       tel,
       specialty,
+      gender,
     });
 
-    res.status(201).json(newDoctor);
+    const populated = await newDoctor.populate('user', 'name email');
+    res.status(201).json(flattenDoctor(populated));
   } catch (err) {
     res.status(500).json({ message: 'Error adding doctor' });
+  }
+};
+
+export const updateDoctor = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { name, email, tel, specialty, gender } = req.body;
+
+    const doctor = await Doctor.findById(id);
+    if (!doctor) return res.status(404).json({ message: 'Doctor not found' });
+
+    // Update User details
+    await User.findByIdAndUpdate(doctor.user, { name, email });
+
+    // Update Doctor details
+    const updatedDoctor = await Doctor.findByIdAndUpdate(
+      id,
+      { tel, specialty, gender },
+      { new: true }
+    ).populate('user', 'name email');
+
+    res.json(flattenDoctor(updatedDoctor));
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating doctor' });
   }
 };
 
@@ -81,7 +108,7 @@ export const getSchedules = async (req: Request, res: Response) => {
       path: 'doctor',
       populate: { path: 'user', select: 'name' }
     });
-    res.json(schedules);
+    res.json(schedules.map(flattenSchedule));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching schedules' });
   }
@@ -97,7 +124,11 @@ export const addSchedule = async (req: Request, res: Response) => {
       time,
       maxAppointments: nop,
     });
-    res.status(201).json(newSchedule);
+    const populated = await newSchedule.populate({
+      path: 'doctor',
+      populate: { path: 'user', select: 'name' }
+    });
+    res.status(201).json(flattenSchedule(populated));
   } catch (err) {
     res.status(500).json({ message: 'Error adding schedule' });
   }
@@ -116,7 +147,7 @@ export const deleteSchedule = async (req: Request, res: Response) => {
 export const getPatients = async (req: Request, res: Response) => {
   try {
     const patients = await Patient.find().populate('user', 'name email');
-    res.json(patients);
+    res.json(patients.map(flattenPatient));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching patients' });
   }
@@ -134,8 +165,17 @@ export const getAllAppointments = async (req: Request, res: Response) => {
         populate: { path: 'doctor', populate: { path: 'user', select: 'name' } }
       })
       .sort({ createdAt: -1 });
-    res.json(appointments);
+    res.json(appointments.map(flattenAppointment));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching appointments' });
+  }
+};
+export const deleteAppointment = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    await Appointment.findByIdAndDelete(id);
+    res.json({ message: 'Appointment deleted successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error deleting appointment' });
   }
 };

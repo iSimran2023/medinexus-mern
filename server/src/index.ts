@@ -2,6 +2,7 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 
 dotenv.config();
 
@@ -17,6 +18,7 @@ const PORT = process.env.PORT || 5000;
 app.use(cors());
 app.use(express.json());
 
+<<<<<<< HEAD
 // Database Connection variable
 const MONGODB_URI = process.env.MONGODB_URI;
 
@@ -43,6 +45,10 @@ app.use(async (req, res, next) => {
     next();
   }
 });
+=======
+// Serve uploads statically
+app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments)
 
 // Routes
 app.use('/api/auth', authRoutes);
@@ -54,6 +60,7 @@ app.get('/', (req, res) => {
   res.send('MediNexus API is running...');
 });
 
+<<<<<<< HEAD
 // Local Server Start (Only if not on Vercel)
 if (process.env.NODE_ENV !== 'production') {
   mongoose.connect(MONGODB_URI || 'mongodb://localhost:27017/medinexus')
@@ -69,3 +76,27 @@ if (process.env.NODE_ENV !== 'production') {
 }
 
 export default app;
+=======
+// Catch-all for 404s
+app.use((req, res) => {
+  console.log(`404 - Not Found: ${req.method} ${req.originalUrl}`);
+  res.status(404).json({ message: `Route ${req.originalUrl} not found on this server.` });
+});
+
+// Start the server immediately
+app.listen(PORT, () => {
+  console.log(`Server is listening on port ${PORT}`);
+});
+
+// Database Connection
+const MONGODB_URI = process.env.MONGODB_URI || 'mongodb://localhost:27017/medinexus';
+
+mongoose.connect(MONGODB_URI)
+  .then(() => {
+    console.log('Connected to MongoDB');
+  })
+  .catch((err) => {
+    console.error('❌ MongoDB Connection Error:', err.message);
+    console.error('Action Required: Whitelist your IP in MongoDB Atlas dashboard.');
+  });
+>>>>>>> b695511 (fe: added priority queue for routine and emergency appointments)

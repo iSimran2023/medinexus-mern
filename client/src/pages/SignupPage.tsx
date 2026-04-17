@@ -13,13 +13,14 @@ const SignupPage: React.FC = () => {
     address: '',
     dob: '',
     tel: '',
+    gender: '',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
   const { showToast } = useToast();
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
   };
 
@@ -106,17 +107,34 @@ const SignupPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="form-group">
-            <label className="form-label">Address</label>
-            <input 
-              type="text" 
-              name="address"
-              className="input-text" 
-              placeholder="Address"
-              value={formData.address}
-              onChange={handleChange}
-              required 
-            />
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>
+            <div className="form-group">
+              <label className="form-label">Gender</label>
+              <select 
+                name="gender" 
+                className="input-text" 
+                value={formData.gender} 
+                onChange={handleChange} 
+                required
+              >
+                <option value="">Select Gender</option>
+                <option value="Male">Male</option>
+                <option value="Female">Female</option>
+                <option value="Other">Other</option>
+              </select>
+            </div>
+            <div className="form-group">
+              <label className="form-label">Address</label>
+              <input 
+                type="text" 
+                name="address"
+                className="input-text" 
+                placeholder="Address"
+                value={formData.address}
+                onChange={handleChange}
+                required 
+              />
+            </div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '15px' }}>

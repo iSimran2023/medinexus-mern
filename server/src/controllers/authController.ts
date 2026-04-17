@@ -35,7 +35,7 @@ export const login = async (req: Request, res: Response) => {
 
 export const registerPatient = async (req: Request, res: Response) => {
   try {
-    const { email, password, name, address, dob, tel } = req.body;
+    const { email, password, name, address, dob, tel, gender } = req.body;
 
     const existingUser = await User.findOne({ email });
     if (existingUser) {
@@ -54,6 +54,7 @@ export const registerPatient = async (req: Request, res: Response) => {
       address,
       dob,
       tel,
+      gender,
     });
 
     res.status(201).json({ message: 'Patient registered successfully' });
@@ -66,7 +67,12 @@ export const checkAuth = async (req: Request, res: Response) => {
   try {
     const user = await User.findById((req as any).user.id).select('-password');
     if (!user) return res.status(404).json({ message: 'User not found' });
-    res.json(user);
+    res.json({
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error checking auth' });
   }
