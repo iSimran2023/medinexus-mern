@@ -1,13 +1,4 @@
 import React, { useState } from 'react';
-<<<<<<< HEAD:client/src/pages/PatientSessions.tsx
-import { useLocation } from 'react-router-dom';
-import DashboardLayout from '../components/DashboardLayout';
-import { useFetch } from '../hooks/useFetch';
-import { Calendar, Clock, User } from 'lucide-react';
-import api from '../services/api';
-import '../styles/dashboard.css';
-import { useToast } from '../context/ToastContext';
-=======
 import { useLocation, useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useFetch } from '../../hooks/useFetch';
@@ -15,7 +6,6 @@ import { Calendar, Clock, User, BookOpen } from 'lucide-react';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
 import { useToast } from '../../context/ToastContext';
->>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/patient/Sessions.tsx
 
 interface Schedule {
   id: string;

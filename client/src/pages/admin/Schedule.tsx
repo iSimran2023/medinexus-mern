@@ -1,14 +1,4 @@
 import React, { useState } from 'react';
-<<<<<<< HEAD:client/src/pages/AdminSchedule.tsx
-import DashboardLayout from '../components/DashboardLayout';
-import Modal from '../components/Modal';
-import ConfirmModal from '../components/ConfirmModal';
-import { useFetch } from '../hooks/useFetch';
-import { Plus, Eye, Trash2 } from 'lucide-react';
-import api from '../services/api';
-import '../styles/dashboard.css';
-import { useToast } from '../context/ToastContext';
-=======
 import DashboardLayout from '../../components/DashboardLayout';
 import Modal from '../../components/Modal';
 import ConfirmModal from '../../components/ConfirmModal';
@@ -17,7 +7,6 @@ import { Plus, Eye, Trash2, Calendar, LayoutGrid } from 'lucide-react';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
 import { useToast } from '../../context/ToastContext';
->>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/admin/Schedule.tsx
 
 interface Schedule {
   id: string;

@@ -1,13 +1,7 @@
 import React from 'react';
-<<<<<<< HEAD:client/src/pages/PatientDashboard.tsx
-import { useNavigate } from 'react-router-dom';
-import DashboardLayout from '../components/DashboardLayout';
-import { useAuth } from '../context/AuthContext';
-=======
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
->>>>>>> b695511 (fe: added priority queue for routine and emergency appointments):client/src/pages/patient/Dashboard.tsx
 import { UserRound, Users, BookOpen, CalendarDays, Search } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
 import '../../styles/dashboard.css';
