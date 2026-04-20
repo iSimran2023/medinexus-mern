@@ -6,6 +6,7 @@ import { Trash2, Printer, ChevronDown, ChevronUp, Eye, CalendarX, CheckCircle2, 
 import { printAppointmentPdf } from '../../utils/printPdf';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
+import { useToast } from '../../context/ToastContext';
 
 interface Appointment {
   id: string;
@@ -27,42 +28,85 @@ interface Appointment {
   document: string;
   status: 'Pending' | 'Reviewed';
   gender?: string;
+  prescription?: {
+    diagnosis: string;
+    medications: string[];
+    notes: string;
+  };
+  scheduleId?: string;
 }
 
 const VITE_BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
 
 const Appointments: React.FC = () => {
   const { data: appointments, loading, setData } = useFetch<Appointment[]>('/doctor/appointments');
+  const { showToast } = useToast();
   
   // Modal State
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
-  const [pendingCancelId, setPendingCancelId] = useState('');
+  const [isReviewConfirmOpen, setIsReviewConfirmOpen] = useState(false);
+  const [pendingActionId, setPendingActionId] = useState('');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
   const [activeTab, setActiveTab] = useState<'Pending' | 'Reviewed'>('Pending');
+  
+  // Prescription Form State
+  const [prescription, setPrescription] = useState({
+    diagnosis: '',
+    medications: '',
+    notes: ''
+  });
 
   const handleCancelClick = (id: string) => {
-    setPendingCancelId(id);
+    setPendingActionId(id);
     setIsConfirmOpen(true);
   };
 
-  const handleReview = async (id: string) => {
+  const handleReviewClick = (id: string) => {
+    setPendingActionId(id);
+    setIsReviewConfirmOpen(true);
+  };
+
+  const confirmReview = async () => {
     try {
-      await api.put(`/doctor/appointments/${id}/review`);
-      setData(appointments?.map(a => a.id === id ? { ...a, status: 'Reviewed' as const } : a) || null);
-      showToast('Appointment marked as reviewed', 'success');
+      const payload = {
+        prescription: {
+          ...prescription,
+          medications: prescription.medications.split(',').map(m => m.trim()).filter(m => m !== '')
+        }
+      };
+      await api.put(`/doctor/appointments/${pendingActionId}/review`, payload);
+      setData(appointments?.map(a => a.id === pendingActionId ? { 
+        ...a, 
+        status: 'Reviewed' as const,
+        prescription: payload.prescription
+      } : a) || null);
+      showToast('Appointment reviewed and prescription saved.', 'success');
+      setIsReviewConfirmOpen(false);
+      setPrescription({ diagnosis: '', medications: '', notes: '' });
     } catch (err) {
-      alert('Error updating status');
+      showToast('Error updating status', 'error');
     }
   };
 
-  const filteredByTab = appointments?.filter(a => a.status === activeTab);
+  const updateServingToken = async (scheduleId: string, tokenNumber: number) => {
+    try {
+      await api.put('/doctor/sessions/serving-token', { scheduleId, tokenNumber });
+      showToast(`Now serving token #${tokenNumber}`, 'success');
+    } catch (err) {
+      showToast('Error updating serving token', 'error');
+    }
+  };
+
+  const filteredByTab = appointments?.filter(a => activeTab === 'Pending' ? (a.status === 'Pending' || a.status === 'Rescheduled') : a.status === activeTab);
 
   const confirmCancel = async () => {
     try {
-      await api.delete(`/doctor/appointments/${pendingCancelId}`);
-      setData(appointments?.filter(a => a.id !== pendingCancelId) || null);
+      await api.delete(`/doctor/appointments/${pendingActionId}`);
+      setData(appointments?.filter(a => a.id !== pendingActionId) || null);
+      showToast('Appointment cancelled successfully', 'success');
+      setIsConfirmOpen(false);
     } catch (err) {
-      alert('Error cancelling appointment');
+      showToast('Error cancelling appointment', 'error');
     }
   };
 
@@ -121,7 +165,7 @@ const Appointments: React.FC = () => {
               <th className="table-headin">Appoint. Number</th>
               <th className="table-headin">Priority</th>
               <th className="table-headin">Session Details</th>
-              <th className="table-headin">Medical Notes</th>
+              <th className="table-headin">Booking Confirmed At</th>
               <th className="table-headin">Events</th>
             </tr>
           </thead>
@@ -159,13 +203,9 @@ const Appointments: React.FC = () => {
                     </div>
                   </td>
                   <td>
-                    {app.symptoms ? (
-                      <div style={{ fontSize: '13px' }}>
-                        <div style={{ color: '#ef4444', marginBottom: '2px' }}><strong>Symptoms:</strong> {app.symptoms?.substring(0, 30)}{app.symptoms?.length > 30 ? '...' : ''}</div>
-                      </div>
-                    ) : (
-                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>No data</span>
-                    )}
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
+                      {app.appointmentDate ? new Date(app.appointmentDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                    </div>
                   </td>
                   <td>
                     <div className="action-btns">
@@ -176,12 +216,24 @@ const Appointments: React.FC = () => {
                       >
                         {expandedRow === app.id ? <ChevronUp size={16} /> : <Eye size={16} />}
                       </button>
-                      {activeTab === 'Pending' && (
+                      {(activeTab === 'Pending' || activeTab === 'Rescheduled') && (
                         <button 
-                          onClick={() => handleReview(app.id)} 
+                          onClick={() => {
+                            updateServingToken(app.scheduleId!, app.appointmentNumber);
+                          }}
+                          className="btn-primary-soft btn-sm"
+                          style={{ color: '#8b5cf6', background: '#f5f3ff' }}
+                          title="Call Patient (Update Serving Token)"
+                        >
+                          <Clock size={16} />
+                        </button>
+                      )}
+                      {(activeTab === 'Pending' || activeTab === 'Rescheduled') && (
+                        <button 
+                          onClick={() => handleReviewClick(app.id)} 
                           className="btn-primary-soft btn-sm" 
                           style={{ color: '#10b981', background: '#ecfdf5' }}
-                          title="Mark as Reviewed"
+                          title="Complete & Prescribe"
                         >
                           <CheckCircle2 size={16} />
                         </button>
@@ -193,7 +245,7 @@ const Appointments: React.FC = () => {
                       >
                         <Printer size={16} />
                       </button>
-                      {activeTab === 'Pending' && (
+                      {(activeTab === 'Pending' || activeTab === 'Rescheduled') && (
                         <button 
                           onClick={() => handleCancelClick(app.id)} 
                           className="btn-primary-soft btn-sm btn-danger" 
@@ -262,6 +314,51 @@ const Appointments: React.FC = () => {
         title="Cancel Appointment"
         message="Are you sure you want to cancel this appointment? This action will remove the patient from this session."
       />
+
+      <ConfirmModal 
+        isOpen={isReviewConfirmOpen}
+        onClose={() => setIsReviewConfirmOpen(false)}
+        onConfirm={confirmReview}
+        title="Digital Prescription & Review"
+        message="Enter the diagnosis and medications for this patient."
+        confirmLabel="Save & Complete"
+        cancelLabel="Discard"
+        variant="primary"
+      >
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '15px', textAlign: 'left' }}>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Diagnosis</label>
+            <input 
+              type="text" 
+              className="input-text" 
+              placeholder="e.g. Viral Fever"
+              value={prescription.diagnosis}
+              onChange={(e) => setPrescription({ ...prescription, diagnosis: e.target.value })}
+              style={{ width: '100%', padding: '10px' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Medications (comma separated)</label>
+            <textarea 
+              className="input-text" 
+              placeholder="e.g. Paracetamol 500mg, Amoxicillin"
+              value={prescription.medications}
+              onChange={(e) => setPrescription({ ...prescription, medications: e.target.value })}
+              style={{ width: '100%', padding: '10px', minHeight: '60px' }}
+            />
+          </div>
+          <div>
+            <label style={{ display: 'block', fontSize: '13px', fontWeight: 600, color: '#475569', marginBottom: '5px' }}>Additional Notes</label>
+            <textarea 
+              className="input-text" 
+              placeholder="e.g. Bed rest for 3 days"
+              value={prescription.notes}
+              onChange={(e) => setPrescription({ ...prescription, notes: e.target.value })}
+              style={{ width: '100%', padding: '10px', minHeight: '80px' }}
+            />
+          </div>
+        </div>
+      </ConfirmModal>
     </DashboardLayout>
   );
 };

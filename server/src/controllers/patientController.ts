@@ -3,7 +3,7 @@ import Schedule from '../models/Schedule';
 import Appointment from '../models/Appointment';
 import Doctor from '../models/Doctor';
 import Patient from '../models/Patient';
-import { flattenAppointment, flattenDoctor, flattenSchedule } from '../utils/dataFlatteners';
+import { flattenAppointment, flattenDoctor, flattenSchedule, flattenPatient } from '../utils/dataFlatteners';
 
 export const getPatientStats = async (req: Request, res: Response) => {
   try {
@@ -36,7 +36,11 @@ export const getMyBookings = async (req: Request, res: Response) => {
     const patient = await Patient.findOne({ user: userId });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
-    const bookings = await Appointment.find({ patient: patient._id })
+    // Only fetch non-cancelled appointments so rescheduled ones disappear from the list
+    const bookings = await Appointment.find({ 
+      patient: patient._id,
+      status: { $ne: 'Cancelled' }
+    })
       .populate({
         path: 'patient',
         populate: { path: 'user', select: 'name email' }
@@ -64,7 +68,6 @@ export const bookAppointment = async (req: Request, res: Response) => {
     const schedule = await Schedule.findById(scheduleId);
     if (!schedule) return res.status(404).json({ message: 'Schedule not found' });
 
-    // Check for duplicate booking
     const existingBooking = await Appointment.findOne({ 
       patient: patient._id, 
       schedule: scheduleId 
@@ -73,11 +76,9 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'You have already booked this session' });
     }
 
-    // Calculate appointment number (Sequential FCFS)
     const lastAppointment = await Appointment.findOne({ schedule: scheduleId }).sort({ appointmentNumber: -1 });
     const nextNumber = lastAppointment ? lastAppointment.appointmentNumber + 1 : 1;
     
-    // Check if session is full using count instead of number to be safe about slot availability
     const bookingCount = await Appointment.countDocuments({ schedule: scheduleId });
     if (bookingCount >= schedule.maxAppointments) {
       return res.status(400).json({ message: 'Session is full' });
@@ -126,5 +127,199 @@ export const getAllDoctors = async (req: Request, res: Response) => {
     res.json(doctors.map(flattenDoctor));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching doctors' });
+  }
+};
+
+/** 
+ * STEPPER APIS 
+ */
+
+// Step 1: Basic Patient Profile
+export const getBookingStep1 = async (req: Request, res: Response) => {
+  try {
+    const userId = (req as any).user.id;
+    const patient = await Patient.findOne({ user: userId }).populate('user', 'name email');
+    if (!patient) return res.status(404).json({ message: 'Patient profile not found' });
+    res.json(flattenPatient(patient));
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching step 1 data' });
+  }
+};
+
+const parseHistoryString = (text: string) => {
+  if (!text) return {};
+  const labels = ['Reason:', 'Diseases:', 'Allergies:', 'Meds:', 'Emergency:', 'Notes:', 'Type:'];
+  const result: Record<string, string> = {};
+  for (let i = 0; i < labels.length; i++) {
+    const currentLabel = labels[i];
+    const currentIndex = text.lastIndexOf(currentLabel);
+    if (currentIndex === -1) {
+      result[currentLabel] = '';
+      continue;
+    }
+    const start = currentIndex + currentLabel.length;
+    let end = text.length;
+    for (let j = i + 1; j < labels.length; j++) {
+      const nextLabelIndex = text.lastIndexOf(labels[j]);
+      if (nextLabelIndex !== -1 && nextLabelIndex > currentIndex) {
+        if (end === text.length || nextLabelIndex < end) {
+          end = nextLabelIndex;
+        }
+      }
+    }
+    result[currentLabel] = text.substring(start, end).replace(/\\n/g, '\n').trim();
+  }
+  return result;
+};
+
+// Step 2: Medical History (Pre-fill from last appointment if exists, or specific appointment if rescheduling)
+export const getBookingStep2 = async (req: Request, res: Response) => {
+  try {
+    const { rescheduleId } = req.query;
+    let targetAppointment = null;
+
+    if (rescheduleId) {
+      targetAppointment = await Appointment.findById(rescheduleId);
+    } else {
+      const userId = (req as any).user.id;
+      const patient = await Patient.findOne({ user: userId });
+      if (patient) {
+        targetAppointment = await Appointment.findOne({ patient: patient._id }).sort({ createdAt: -1 });
+      }
+    }
+
+    const parsed = parseHistoryString(targetAppointment?.medicalData?.history || '');
+    
+    return res.json({
+      symptoms: targetAppointment?.medicalData?.symptoms || '',
+      reason: parsed['Reason:'] || '',
+      existingDiseases: parsed['Diseases:'] || '',
+      allergies: parsed['Allergies:'] || '',
+      medications: parsed['Meds:'] || '',
+      emergencyContact: parsed['Emergency:'] || '',
+      history: parsed['Notes:'] || '',
+      appointmentType: parsed['Type:'] || 'In-person',
+      priority: targetAppointment?.priority || 'Routine',
+      documentName: targetAppointment?.medicalData?.documentName || ''
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching step 2 data' });
+  }
+};
+
+// Step 3: Session Summary
+export const getBookingStep3 = async (req: Request, res: Response) => {
+  try {
+    const { scheduleId } = req.params;
+    const { rescheduleId } = req.query;
+
+    const schedule = await Schedule.findById(scheduleId).populate({
+      path: 'doctor',
+      populate: { path: 'user', select: 'name' }
+    });
+    if (!schedule) return res.status(404).json({ message: 'Session not found' });
+
+    let rescheduleData = {};
+    if (rescheduleId) {
+      const appointment = await Appointment.findById(rescheduleId);
+      if (appointment) {
+        const parsed = parseHistoryString(appointment.medicalData?.history || '');
+        rescheduleData = {
+          priority: appointment.priority || 'Routine',
+          documentName: appointment.medicalData?.documentName || '',
+          appointmentType: parsed['Type:'] || 'In-person'
+        };
+      }
+    }
+
+    res.json({
+      ...flattenSchedule(schedule),
+      rescheduleData
+    });
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching step 3 data' });
+  }
+};
+
+// Original profile for backward compatibility
+export const getPatientProfile = async (req: Request, res: Response) => {
+  return getBookingStep1(req, res);
+};
+
+export const cancelAppointmentPatient = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const appointment = await Appointment.findById(id).populate('schedule');
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+    const schedule = appointment.schedule as any;
+    const appointmentDateTime = new Date(schedule.date);
+    // Parse time string (e.g., "10:00") and set it to the date
+    const [hours, minutes] = schedule.time.split(':');
+    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+    const now = new Date();
+    const diffInMs = appointmentDateTime.getTime() - now.getTime();
+    const diffInHours = diffInMs / (1000 * 60 * 60);
+
+    if (diffInHours < 1) {
+      return res.status(400).json({ message: 'Cannot cancel within 1 hour of appointment' });
+    }
+
+    appointment.status = 'Cancelled';
+    await appointment.save();
+    res.json({ message: 'Appointment cancelled successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error cancelling appointment' });
+  }
+};
+
+export const rescheduleAppointment = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { scheduleId, medicalData, priority } = req.body;
+
+    const appointment = await Appointment.findById(id);
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+
+    const newSchedule = await Schedule.findById(scheduleId);
+    if (!newSchedule) return res.status(404).json({ message: 'Schedule not found' });
+
+    const bookingCount = await Appointment.countDocuments({ schedule: scheduleId, status: { $ne: 'Cancelled' } });
+    if (bookingCount >= newSchedule.maxAppointments) {
+      return res.status(400).json({ message: 'Selected session is full' });
+    }
+
+    const lastAppointment = await Appointment.findOne({ schedule: scheduleId }).sort({ appointmentNumber: -1 });
+    const nextNumber = lastAppointment ? lastAppointment.appointmentNumber + 1 : 1;
+
+    // Cancel old appointment
+    appointment.status = 'Cancelled';
+    await appointment.save();
+
+    // Create new appointment
+    await Appointment.create({
+      patient: appointment.patient,
+      schedule: scheduleId,
+      appointmentNumber: nextNumber,
+      medicalData: medicalData || appointment.medicalData,
+      priority: priority || appointment.priority,
+      status: 'Rescheduled',
+    });
+
+    res.json({ message: 'Appointment rescheduled successfully' });
+  } catch (err) {
+    res.status(500).json({ message: 'Error rescheduling appointment' });
+  }
+};
+
+export const getAppointmentDetails = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const appointment = await Appointment.findById(id).populate('schedule');
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    res.json(flattenAppointment(appointment));
+  } catch (err) {
+    res.status(500).json({ message: 'Error fetching appointment details' });
   }
 };

@@ -111,7 +111,7 @@ const Appointments: React.FC = () => {
               <th className="table-headin">Session Title</th>
               <th className="table-headin">Session Date & Time</th>
               <th className="table-headin">Status</th>
-              <th className="table-headin">Medical Notes</th>
+              <th className="table-headin">Booking Confirmed At</th>
               <th className="table-headin">Actions</th>
             </tr>
           </thead>
@@ -154,13 +154,9 @@ const Appointments: React.FC = () => {
                     )}
                   </td>
                   <td>
-                    {app.symptoms ? (
-                      <div style={{ fontSize: '13px' }}>
-                        <div style={{ color: '#ef4444', marginBottom: '2px' }}><strong>Symptoms:</strong> {app.symptoms?.substring(0, 30)}{app.symptoms?.length > 30 ? '...' : ''}</div>
-                      </div>
-                    ) : (
-                      <span style={{ color: '#94a3b8', fontSize: '13px' }}>No data</span>
-                    )}
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
+                      {app.appointmentDate ? new Date(app.appointmentDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                    </div>
                   </td>
                   <td>
                     <div className="action-btns">

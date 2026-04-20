@@ -24,6 +24,11 @@ const appointmentSchema = new mongoose.Schema({
     history: String,
     documentName: String,
   },
+  prescription: {
+    diagnosis: String,
+    medications: [String],
+    notes: String,
+  },
   priority: {
     type: String,
     enum: ['Routine', 'Emergency'],
@@ -31,7 +36,7 @@ const appointmentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Reviewed'],
+    enum: ['Pending', 'Reviewed', 'Cancelled', 'Rescheduled'],
     default: 'Pending',
   },
 }, {

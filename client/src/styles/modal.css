@@ -76,6 +76,11 @@
   margin: 0 auto 20px;
 }
 
+.confirm-icon.primary {
+  background-color: #eff6ff;
+  color: #3b82f6;
+}
+
 .confirm-title {
   font-size: 20px;
   font-weight: 700;

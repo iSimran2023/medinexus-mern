@@ -19,7 +19,8 @@ export const flattenAppointment = (app: any) => {
     symptoms: app.medicalData?.symptoms || null,
     history: app.medicalData?.history || null,
     document: app.medicalData?.documentName || null,
-    status: app.status || 'Pending'
+    status: app.status || 'Pending',
+    prescription: app.prescription || { diagnosis: '', medications: [], notes: '' }
   };
 };
 
@@ -57,6 +58,7 @@ export const flattenSchedule = (sch: any) => {
     doctorTel: sch.doctor?.tel || null,
     date: sch.date || null,
     time: sch.time || null,
-    maxAppointments: sch.maxAppointments || 0
+    maxAppointments: sch.maxAppointments || 0,
+    currentlyServingToken: sch.currentlyServingToken || 0
   };
 };

@@ -1,10 +1,13 @@
 import React from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useFetch } from '../../hooks/useFetch';
-import { Calendar, Clock, User, Bookmark, Printer, Eye, ChevronDown, ChevronUp, Inbox } from 'lucide-react';
+import { Calendar, Clock, User, Bookmark, Printer, Eye, ChevronDown, ChevronUp, Inbox, Trash2 } from 'lucide-react';
 import { printAppointmentPdf } from '../../utils/printPdf';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
 import { useState } from 'react';
+import api from '../../services/api';
 import '../../styles/dashboard.css';
 
 interface Booking {
@@ -25,17 +28,46 @@ interface Booking {
   symptoms: string;
   history: string;
   document: string;
+  status: string;
+  currentlyServingToken?: number;
+  gender?: string;
+  prescription?: {
+    diagnosis: string;
+    medications: string[];
+    notes: string;
+  };
 }
 
 const VITE_BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
 
 const Appointments: React.FC = () => {
   const { data: bookings, loading } = useFetch<Booking[]>('/patient/bookings');
+  const navigate = useNavigate();
   const { user } = useAuth();
+  const { showToast } = useToast();
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
 
   const toggleExpand = (id: string) => {
     setExpandedRow(expandedRow === id ? null : id);
+  };
+
+  const handleCancel = async (id: string) => {
+    if (window.confirm('Are you sure you want to cancel this appointment?')) {
+      try {
+        await api.put(`/patient/appointments/${id}/cancel`);
+        showToast('Appointment cancelled', 'success');
+        // Refresh or update state
+        window.location.reload();
+      } catch (err: any) {
+        showToast(err.response?.data?.message || 'Error cancelling appointment', 'error');
+      }
+    }
+  };
+
+  const calculateWaitTime = (myToken: number, currentToken: number) => {
+    const diff = myToken - currentToken;
+    if (diff <= 0) return 'Your turn is coming up!';
+    return `${diff * 10} minutes`; // Assume 10 mins per patient
   };
 
   return (
@@ -51,8 +83,8 @@ const Appointments: React.FC = () => {
               <th className="table-headin">App. No</th>
               <th className="table-headin">Session Title</th>
               <th className="table-headin">Doctor</th>
-              <th className="table-headin">My Details</th>
-              <th className="table-headin">Date & Time</th>
+              <th className="table-headin">Booking Confirmed At</th>
+              <th className="table-headin">Scheduled Date & Time</th>
               <th className="table-headin">Action</th>
             </tr>
           </thead>
@@ -77,11 +109,19 @@ const Appointments: React.FC = () => {
                   <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--primary-color)' }}>
                     {booking.appointmentNumber}
                   </td>
-                  <td style={{ fontWeight: 500 }}>{booking.scheduleTitle || 'Untitled Session'}</td>
+                  <td style={{ fontWeight: 500 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      {booking.scheduleTitle || 'Untitled Session'}
+                      {booking.status === 'Rescheduled' && (
+                        <span style={{ fontSize: '10px', background: '#fef3c7', color: '#d97706', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>RESCHEDULED</span>
+                      )}
+                    </div>
+                  </td>
                   <td>Dr. {booking.doctorName || 'Unknown'}</td>
                   <td>
-                    {booking.priority === 'Emergency' && <span style={{ background: '#fef2f2', color: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Emergency</span>}
-                    {(!booking.priority || booking.priority === 'Routine') && <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Routine</span>}
+                    <div style={{ fontSize: '13px', fontWeight: 600, color: '#10b981' }}>
+                      {booking.appointmentDate ? new Date(booking.appointmentDate).toLocaleString([], { dateStyle: 'medium', timeStyle: 'short' }) : 'N/A'}
+                    </div>
                   </td>
                   <td>
                     {booking.scheduleDate ? (
@@ -108,6 +148,25 @@ const Appointments: React.FC = () => {
                       >
                         <Printer size={16} />
                       </button>
+                      {(booking.status === 'Pending' || booking.status === 'Rescheduled') && (
+                        <>
+                          <button 
+                            className="btn-primary-soft btn-sm btn-danger" 
+                            title="Cancel Appointment"
+                            onClick={() => handleCancel(booking.id)}
+                          >
+                            <Trash2 size={16} />
+                          </button>
+                          <button 
+                            className="btn-primary-soft btn-sm" 
+                            title="Reschedule"
+                            onClick={() => navigate(`/patient/schedule?rescheduleId=${booking.id}`)}
+                            style={{ color: '#6366f1', background: '#e0e7ff' }}
+                          >
+                            <Calendar size={16} />
+                          </button>
+                        </>
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -119,38 +178,68 @@ const Appointments: React.FC = () => {
                   isExpanded && (
                     <tr key={`${booking.id}-expanded`} style={{ backgroundColor: '#f8fafc' }}>
                       <td colSpan={6} style={{ padding: '20px', borderTop: 'none' }}>
-                        <div style={{ display: 'flex', gap: '40px' }}>
-                          <div style={{ flex: 1 }}>
-                            <h4 style={{ marginBottom: '10px', color: '#334155' }}>Registration Details</h4>
-                            <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b' }}>
-                              <p><strong>Full Name:</strong> {booking.patientName}</p>
-                              <p><strong>Email:</strong> {booking.patientEmail || 'N/A'}</p>
-                              <p><strong>Phone:</strong> {booking.patientPhone || 'N/A'}</p>
-                              <p><strong>Address:</strong> {booking.address || 'N/A'}</p>
-                              <p><strong>Gender:</strong> {booking.gender || 'N/A'}</p>
-                              <p><strong>DOB:</strong> {booking.dob ? new Date(booking.dob).toLocaleDateString() : 'N/A'}</p>
-                            </div>
-                          </div>
-                          <div style={{ flex: 2 }}>
-                            <h4 style={{ marginBottom: '10px', color: '#334155' }}>Medical Notes</h4>
-                            <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                              <p style={{ marginBottom: '8px' }}><strong style={{ color: '#ef4444' }}>Symptoms:</strong><br/>{booking.symptoms || 'None reported'}</p>
-                              <p style={{ marginBottom: '8px' }}><strong style={{ color: '#334155' }}>Medical History:</strong><br/>{booking.history || 'None reported'}</p>
+                        <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                          <div style={{ flex: '1 1 300px' }}>
+                            <h4 style={{ marginBottom: '10px', color: '#334155' }}>Medical Details</h4>
+                            <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', height: 'calc(100% - 35px)' }}>
+                              <p style={{ marginBottom: '5px' }}><strong>Symptoms:</strong> {booking.symptoms || 'N/A'}</p>
+                              <div style={{ whiteSpace: 'pre-wrap' }}><strong>History:</strong><br/>{booking.history || 'N/A'}</div>
                               {booking.document && (
-                                <p>
-                                  <strong style={{ color: '#334155' }}>Attached Document:</strong>{' '}
-                                  <a 
-                                    href={`${VITE_BASE_URL}/uploads/${booking.document}`}
-                                    target="_blank"
-                                    rel="noreferrer"
-                                    style={{ color: '#3b82f6', textDecoration: 'underline', cursor: 'pointer' }}
-                                  >
-                                    {booking.document}
-                                  </a>
-                                </p>
+                                <div style={{ marginTop: '10px' }}>
+                                  <strong>Document:</strong> <a href={`http://localhost:5000/uploads/${booking.document}`} target="_blank" rel="noreferrer" style={{ color: '#6366f1' }}>View File</a>
+                                </div>
                               )}
                             </div>
                           </div>
+
+                          {(booking.status === 'Pending' || booking.status === 'Rescheduled') && (
+                            <div style={{ flex: '1 1 300px' }}>
+                              <h4 style={{ marginBottom: '10px', color: '#334155' }}>Queue Status</h4>
+                              <div style={{ 
+                                background: 'linear-gradient(135deg, #6366f1 0%, #a855f7 100%)', 
+                                padding: '20px', 
+                                borderRadius: '12px', 
+                                color: '#fff',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: '10px',
+                                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.1)',
+                                height: 'calc(100% - 35px)'
+                              }}>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>Your Token:</span>
+                                  <span style={{ fontSize: '24px', fontWeight: 800 }}>#{booking.appointmentNumber}</span>
+                                </div>
+                                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>Now Serving:</span>
+                                  <span style={{ fontSize: '24px', fontWeight: 800 }}>#{booking.currentlyServingToken || 0}</span>
+                                </div>
+                                <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '10px', marginTop: '5px' }}>
+                                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                    <span>Est. Wait Time:</span>
+                                    <span style={{ fontWeight: 600 }}>{calculateWaitTime(booking.appointmentNumber, booking.currentlyServingToken || 0)}</span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+
+                          {booking.status === 'Reviewed' && (
+                            <div style={{ flex: '1 1 300px' }}>
+                              <h4 style={{ marginBottom: '10px', color: '#334155' }}>Prescription / Notes</h4>
+                              <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', height: 'calc(100% - 35px)' }}>
+                                {booking.prescription ? (
+                                  <>
+                                    <p style={{ marginBottom: '8px' }}><strong style={{ color: '#10b981' }}>Diagnosis:</strong><br/>{booking.prescription.diagnosis || 'N/A'}</p>
+                                    <p style={{ marginBottom: '8px' }}><strong style={{ color: '#6366f1' }}>Medications:</strong><br/>{booking.prescription.medications?.join(', ') || 'N/A'}</p>
+                                    <p><strong style={{ color: '#334155' }}>Doctor Notes:</strong><br/>{booking.prescription.notes || 'N/A'}</p>
+                                  </>
+                                ) : (
+                                  <p>No prescription details provided.</p>
+                                )}
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </td>
                     </tr>

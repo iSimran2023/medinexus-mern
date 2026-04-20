@@ -32,7 +32,12 @@ const Sessions: React.FC = () => {
   );
 
   const handleBook = (scheduleId: string) => {
-    navigate(`/patient/book/${scheduleId}`);
+    const rescheduleId = queryParams.get('rescheduleId');
+    if (rescheduleId) {
+      navigate(`/patient/book/${scheduleId}?rescheduleId=${rescheduleId}`);
+    } else {
+      navigate(`/patient/book/${scheduleId}`);
+    }
   };
 
   return (

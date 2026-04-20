@@ -55,7 +55,7 @@ export const getMyUpcomingAppointments = async (req: Request, res: Response) => 
     const { status } = req.query; // Optional filter by status
     const doctor = await Doctor.findOne({ user: userId });
     
-    const query: any = {};
+    const query: any = { status: { $ne: 'Cancelled' } };
     if (status) query.status = status;
 
     const appointments = await Appointment.find(query)
@@ -101,12 +101,29 @@ export const getMyUpcomingAppointments = async (req: Request, res: Response) => 
 export const markAppointmentReviewed = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
+    const { prescription } = req.body;
     const appointment = await Appointment.findByIdAndUpdate(
       id,
-      { status: 'Reviewed' },
+      { status: 'Reviewed', prescription },
       { new: true }
     );
     if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    
+    // Populate for flattened response
+    await appointment.populate([
+      {
+        path: 'schedule',
+        populate: { 
+          path: 'doctor',
+          populate: { path: 'user', select: 'name' }
+        }
+      },
+      {
+        path: 'patient',
+        populate: { path: 'user', select: 'name email' }
+      }
+    ]);
+
     res.json({ message: 'Appointment marked as reviewed', appointment: flattenAppointment(appointment) });
   } catch (err) {
     res.status(500).json({ message: 'Error updating appointment status' });
@@ -153,5 +170,20 @@ export const getMyPatients = async (req: Request, res: Response) => {
     res.json(Array.from(patientsMap.values()).map(flattenPatient));
   } catch (err) {
     res.status(500).json({ message: 'Error fetching patients' });
+  }
+};
+
+export const updateServingToken = async (req: Request, res: Response) => {
+  try {
+    const { scheduleId, tokenNumber } = req.body;
+    const schedule = await Schedule.findByIdAndUpdate(
+      scheduleId,
+      { currentlyServingToken: tokenNumber },
+      { new: true }
+    );
+    if (!schedule) return res.status(404).json({ message: 'Schedule not found' });
+    res.json({ message: 'Serving token updated', currentlyServingToken: schedule.currentlyServingToken });
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating serving token' });
   }
 };
