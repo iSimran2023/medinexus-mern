@@ -3,6 +3,8 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { useFetch } from '../../hooks/useFetch';
 import { Search, Download, Trash2, Printer, ChevronDown, ChevronUp, Eye, CalendarX } from 'lucide-react';
 import { printAppointmentPdf } from '../../utils/printPdf';
+import { formatApptNumber } from '../../utils/formatters';
+import MedicalHistoryDisplay from '../../components/MedicalHistoryDisplay';
 import api from '../../services/api';
 import ConfirmModal from '../../components/ConfirmModal';
 import '../../styles/dashboard.css';
@@ -25,12 +27,17 @@ interface Appointment {
   symptoms: string;
   history: string;
   document: string;
+  status: string;
+  gender?: string;
 }
 
 const VITE_BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
 
 const Appointments: React.FC = () => {
-  const { data: appointments, loading, setData } = useFetch<Appointment[]>('/admin/appointments');
+  const [activeTab, setActiveTab] = useState<'Pending' | 'Rescheduled' | 'Reviewed' | 'Missed' | 'Cancelled'>('Pending');
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+  const { data: schedules } = useFetch<any[]>('/admin/schedules');
+  const { data: appointments, loading, setData } = useFetch<Appointment[]>(`/admin/appointments?status=${activeTab}${selectedScheduleId ? `&scheduleId=${selectedScheduleId}` : ''}`);
   const [searchTerm, setSearchTerm] = useState('');
   const [isConfirmOpen, setIsConfirmOpen] = useState(false);
   const [pendingCancelId, setPendingCancelId] = useState('');
@@ -54,7 +61,7 @@ const Appointments: React.FC = () => {
   const confirmCancel = async () => {
     try {
       await api.delete(`/admin/appointments/${pendingCancelId}`);
-      setData(appointments?.filter(a => a.id !== pendingCancelId) || null);
+      setData(appointments?.map(a => a.id === pendingCancelId ? { ...a, status: 'Cancelled' } : a) || null);
     } catch (err) {
       alert('Error cancelling appointment');
     } finally {
@@ -68,7 +75,7 @@ const Appointments: React.FC = () => {
     const csvContent = [
       headers.join(','),
       ...filteredAppointments.map(app => 
-        `"${app.patientName}","${app.appointmentNumber}","Dr. ${app.doctorName}","${app.scheduleTitle}","${app.scheduleDate ? new Date(app.scheduleDate).toLocaleDateString() : 'N/A'}","${app.scheduleTime}"`
+        `"${app.patientName}","${formatApptNumber(app.scheduleDate, app.appointmentNumber)}","Dr. ${app.doctorName}","${app.scheduleTitle}","${app.scheduleDate ? new Date(app.scheduleDate).toLocaleDateString() : 'N/A'}","${app.scheduleTime}"`
       )
     ].join('\n');
 
@@ -84,24 +91,64 @@ const Appointments: React.FC = () => {
       <div className="content-header">
         <h2 className="heading-main">Appointment Manager</h2>
         <div className="header-actions">
-          <div className="search-box" style={{ display: 'flex', gap: '10px' }}>
+          <div className="header-controls">
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>Session:</span>
+              <select 
+                className="filter-dropdown" 
+                value={selectedScheduleId}
+                onChange={(e) => setSelectedScheduleId(e.target.value)}
+              >
+                <option value="">All Sessions</option>
+                {schedules?.map(s => (
+                  <option key={s.id} value={s.id}>
+                    {s.title} - {new Date(s.date).toLocaleDateString()} @{s.time}
+                  </option>
+                ))}
+              </select>
+            </div>
+            
             <input 
               type="text" 
-              placeholder="Search by patient, doctor or session..." 
+              placeholder="Search patients, doctors..." 
               className="input-text"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              style={{ width: '350px' }}
+              style={{ width: '250px', marginBottom: 0 }}
             />
-            <button onClick={exportToCSV} className="btn-primary btn" style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            
+            <button onClick={exportToCSV} className="btn-primary btn" style={{ display: 'flex', alignItems: 'center', gap: '8px', height: '42px' }}>
               <Download size={18} /> Export Report
             </button>
           </div>
         </div>
       </div>
+      
+      <div className="tabs-container" style={{ display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', marginTop: '20px' }}>
+        {(['Pending', 'Rescheduled', 'Reviewed', 'Missed', 'Cancelled'] as const).map((tab) => (
+          <button
+            key={tab}
+            className={`tab-btn ${activeTab === tab ? 'active' : ''}`}
+            onClick={() => setActiveTab(tab)}
+            style={{
+              padding: '10px 15px',
+              border: 'none',
+              background: 'none',
+              cursor: 'pointer',
+              fontSize: '14px',
+              fontWeight: 600,
+              color: activeTab === tab ? 'var(--primary-color)' : '#64748b',
+              borderBottom: activeTab === tab ? '2px solid var(--primary-color)' : '2px solid transparent',
+              transition: 'all 0.2s'
+            }}
+          >
+            {tab} Appointments
+          </button>
+        ))}
+      </div>
 
-      <div className="table-container">
-        <table className="sub-table" style={{ width: '100%' }}>
+      <div className="table-container" style={{ overflowX: 'auto' }}>
+        <table className="sub-table" style={{ width: '100%', minWidth: '1000px' }}>
           <thead>
             <tr>
               <th className="table-headin">Patient Name</th>
@@ -135,22 +182,29 @@ const Appointments: React.FC = () => {
                 <tr key={app.id}>
                   <td style={{ padding: '15px', fontWeight: 600 }}>{app.patientName || 'N/A'}</td>
                   <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
-                    {app.appointmentNumber}
+                    {formatApptNumber(app.scheduleDate, app.appointmentNumber)}
                   </td>
                   <td>
-                    {app.priority === 'Emergency' && <span style={{ background: '#fef2f2', color: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Emergency</span>}
-                    {(!app.priority || app.priority === 'Routine') && <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Routine</span>}
+                    {app.priority === 'Emergency' && <span className="priority-emergency">Emergency</span>}
+                    {(!app.priority || app.priority === 'Routine') && <span className="priority-routine">Routine</span>}
                   </td>
                   <td>Dr. {app.doctorName || 'N/A'}</td>
                   <td>{app.scheduleTitle || 'N/A'}</td>
                   <td>
-                    {app.scheduleDate ? new Date(app.scheduleDate).toLocaleDateString() : 'N/A'} @{app.scheduleTime || ''}
+                    <div style={{ fontSize: '13px', fontWeight: 500 }}>{app.scheduleDate ? new Date(app.scheduleDate).toLocaleDateString() : 'N/A'}</div>
+                    <div style={{ fontSize: '12px', color: '#64748b' }}>@{app.scheduleTime || ''}</div>
                   </td>
                   <td>
                     {app.status === 'Reviewed' ? (
-                      <span style={{ background: '#ecfdf5', color: '#10b981', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>Reviewed</span>
+                      <span className="badge badge-reviewed">Reviewed</span>
+                    ) : app.status === 'Missed' ? (
+                      <span className="badge badge-missed">Missed</span>
+                    ) : app.status === 'Rescheduled' ? (
+                      <span className="badge badge-rescheduled">Rescheduled</span>
+                    ) : app.status === 'Cancelled' ? (
+                      <span className="badge badge-cancelled">Cancelled</span>
                     ) : (
-                      <span style={{ background: '#fffbeb', color: '#f59e0b', padding: '4px 8px', borderRadius: '4px', fontSize: '11px', fontWeight: 600 }}>Pending</span>
+                      <span className="badge badge-pending">Pending</span>
                     )}
                   </td>
                   <td>
@@ -167,8 +221,10 @@ const Appointments: React.FC = () => {
                       >
                         {expandedRow === app.id ? <ChevronUp size={16} /> : <Eye size={16} />}
                       </button>
+                      {app.status !== 'Rescheduled' && app.status !== 'Cancelled' && (
+                        <button onClick={() => handleCancelClick(app.id)} className="btn-primary-soft btn-sm btn-danger" title="Cancel Appointment"><Trash2 size={16} /></button>
+                      )}
                       <button onClick={() => printAppointmentPdf(app)} className="btn-primary-soft btn-sm" title="Print PDF"><Printer size={16} /></button>
-                      <button onClick={() => handleCancelClick(app.id)} className="btn-primary-soft btn-sm btn-danger" title="Cancel Appointment"><Trash2 size={16} /></button>
                     </div>
                   </td>
                 </tr>
@@ -195,7 +251,10 @@ const Appointments: React.FC = () => {
                             <h4 style={{ marginBottom: '10px', color: '#334155' }}>Full Medical Notes</h4>
                             <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                               <p style={{ marginBottom: '8px' }}><strong style={{ color: '#ef4444' }}>Symptoms:</strong><br/>{app.symptoms || 'None reported'}</p>
-                              <p style={{ marginBottom: '8px' }}><strong style={{ color: '#334155' }}>Medical History:</strong><br/>{app.history || 'None reported'}</p>
+                              <div style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: '#334155' }}>Medical History:</strong>
+                                <MedicalHistoryDisplay historyString={app.history || ''} />
+                              </div>
                               {app.document && (
                                 <p>
                                   <strong style={{ color: '#334155' }}>Attached Document:</strong>{' '}

@@ -4,6 +4,8 @@ import DashboardLayout from '../../components/DashboardLayout';
 import { useFetch } from '../../hooks/useFetch';
 import { Calendar, Clock, User, Bookmark, Printer, Eye, ChevronDown, ChevronUp, Inbox, Trash2 } from 'lucide-react';
 import { printAppointmentPdf } from '../../utils/printPdf';
+import { formatApptNumber } from '../../utils/formatters';
+import MedicalHistoryDisplay from '../../components/MedicalHistoryDisplay';
 import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { useState } from 'react';
@@ -30,6 +32,8 @@ interface Booking {
   document: string;
   status: string;
   currentlyServingToken?: number;
+  currentlyServingTokenFull?: string;
+  currentlyServingPriority?: string;
   gender?: string;
   prescription?: {
     diagnosis: string;
@@ -41,7 +45,9 @@ interface Booking {
 const VITE_BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
 
 const Appointments: React.FC = () => {
-  const { data: bookings, loading } = useFetch<Booking[]>('/patient/bookings');
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+  const { data: schedules } = useFetch<any[]>('/patient/sessions');
+  const { data: bookings, loading } = useFetch<Booking[]>(`/patient/bookings${selectedScheduleId ? `?scheduleId=${selectedScheduleId}` : ''}`);
   const navigate = useNavigate();
   const { user } = useAuth();
   const { showToast } = useToast();
@@ -64,20 +70,47 @@ const Appointments: React.FC = () => {
     }
   };
 
-  const calculateWaitTime = (myToken: number, currentToken: number) => {
+  const calculateWaitTime = (myToken: number, currentToken: number, status: string, currentPriority: string) => {
+    if (currentToken === 0) return '-';
     const diff = myToken - currentToken;
-    if (diff <= 0) return 'Your turn is coming up!';
-    return `${diff * 10} minutes`; // Assume 10 mins per patient
+    if (status === 'Reviewed') return 'Completed';
+    
+    if (diff < 0) {
+      // If a higher token is being served but it's an emergency, your turn hasn't necessarily passed.
+      if (currentPriority === 'Emergency') return 'Waiting (Priority Call)';
+      return 'Turn Passed';
+    }
+    
+    if (diff === 0) return 'It\'s your turn! Proceed now.';
+    if (diff === 1) return 'You\'re next! (Coming up)';
+    return `~${diff * 10} minutes`;
   };
 
   return (
     <DashboardLayout title="My Bookings">
-      <div className="content-header">
+      <div className="content-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '25px' }}>
         <h2 className="heading-main">My Appointment History</h2>
+        
+        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>Filter by Session:</span>
+          <select 
+            className="input-text" 
+            style={{ width: '250px', padding: '8px 12px' }}
+            value={selectedScheduleId}
+            onChange={(e) => setSelectedScheduleId(e.target.value)}
+          >
+            <option value="">All Sessions</option>
+            {schedules?.map(s => (
+              <option key={s.id} value={s.id}>
+                {s.title} - {new Date(s.date).toLocaleDateString()} @{s.time}
+              </option>
+            ))}
+          </select>
+        </div>
       </div>
 
-      <div className="table-container">
-        <table className="sub-table" style={{ width: '100%' }}>
+      <div className="table-container" style={{ overflowX: 'auto' }}>
+        <table className="sub-table" style={{ width: '100%', minWidth: '900px' }}>
           <thead>
             <tr>
               <th className="table-headin">App. No</th>
@@ -107,13 +140,16 @@ const Appointments: React.FC = () => {
               bookings?.map((booking) => (
                 <tr key={booking.id}>
                   <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--primary-color)' }}>
-                    {booking.appointmentNumber}
+                    {formatApptNumber(booking.scheduleDate, booking.appointmentNumber)}
                   </td>
                   <td style={{ fontWeight: 500 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                       {booking.scheduleTitle || 'Untitled Session'}
                       {booking.status === 'Rescheduled' && (
                         <span style={{ fontSize: '10px', background: '#fef3c7', color: '#d97706', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>RESCHEDULED</span>
+                      )}
+                      {booking.status === 'Missed' && (
+                        <span style={{ fontSize: '10px', background: '#fef2f2', color: '#ef4444', padding: '2px 6px', borderRadius: '4px', fontWeight: 600 }}>MISSED</span>
                       )}
                     </div>
                   </td>
@@ -148,7 +184,7 @@ const Appointments: React.FC = () => {
                       >
                         <Printer size={16} />
                       </button>
-                      {(booking.status === 'Pending' || booking.status === 'Rescheduled') && (
+                      {booking.status === 'Pending' && (
                         <>
                           <button 
                             className="btn-primary-soft btn-sm btn-danger" 
@@ -183,16 +219,19 @@ const Appointments: React.FC = () => {
                             <h4 style={{ marginBottom: '10px', color: '#334155' }}>Medical Details</h4>
                             <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', height: 'calc(100% - 35px)' }}>
                               <p style={{ marginBottom: '5px' }}><strong>Symptoms:</strong> {booking.symptoms || 'N/A'}</p>
-                              <div style={{ whiteSpace: 'pre-wrap' }}><strong>History:</strong><br/>{booking.history || 'N/A'}</div>
+                              <div style={{ whiteSpace: 'pre-wrap' }}>
+                                <strong>History:</strong>
+                                <MedicalHistoryDisplay historyString={booking.history || ''} />
+                              </div>
                               {booking.document && (
                                 <div style={{ marginTop: '10px' }}>
-                                  <strong>Document:</strong> <a href={`http://localhost:5000/uploads/${booking.document}`} target="_blank" rel="noreferrer" style={{ color: '#6366f1' }}>View File</a>
+                                  <strong>Document:</strong> <a href={`${VITE_BASE_URL}/uploads/${booking.document}`} target="_blank" rel="noreferrer" style={{ color: '#6366f1' }}>View File</a>
                                 </div>
                               )}
                             </div>
                           </div>
 
-                          {(booking.status === 'Pending' || booking.status === 'Rescheduled') && (
+                          {booking.status === 'Pending' && (
                             <div style={{ flex: '1 1 300px' }}>
                               <h4 style={{ marginBottom: '10px', color: '#334155' }}>Queue Status</h4>
                               <div style={{ 
@@ -208,16 +247,45 @@ const Appointments: React.FC = () => {
                               }}>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                   <span>Your Token:</span>
-                                  <span style={{ fontSize: '24px', fontWeight: 800 }}>#{booking.appointmentNumber}</span>
+                                  <span style={{ fontSize: '24px', fontWeight: 800 }}>{formatApptNumber(booking.scheduleDate, booking.appointmentNumber)}</span>
                                 </div>
                                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                                  <span>Your Priority:</span>
+                                  <span style={{ 
+                                    fontWeight: 700,
+                                    padding: '2px 8px',
+                                    borderRadius: '4px',
+                                    background: booking.priority === 'Emergency' ? 'rgba(239, 68, 68, 0.2)' : 'rgba(255, 255, 255, 0.2)',
+                                    color: booking.priority === 'Emergency' ? '#fca5a5' : '#fff'
+                                  }}>
+                                    {booking.priority || 'Routine'}
+                                  </span>
+                                </div>
+                                <div style={{ display: 'flex', flexDirection: 'column', gap: '5px', marginTop: '5px' }}>
                                   <span>Now Serving:</span>
-                                  <span style={{ fontSize: '24px', fontWeight: 800 }}>#{booking.currentlyServingToken || 0}</span>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                                    <span style={{ fontSize: '24px', fontWeight: 800 }}>
+                                      {booking.currentlyServingToken && booking.currentlyServingToken > 0 ? booking.currentlyServingTokenFull : '-'}
+                                    </span>
+                                    {booking.currentlyServingToken > 0 && (
+                                      <span style={{ 
+                                        fontSize: '12px',
+                                        fontWeight: 700,
+                                        padding: '2px 8px',
+                                        borderRadius: '4px',
+                                        background: booking.currentlyServingPriority === 'Emergency' ? '#ef4444' : 'rgba(255, 255, 255, 0.2)',
+                                        color: '#fff',
+                                        textTransform: 'uppercase'
+                                      }}>
+                                        {booking.currentlyServingPriority}
+                                      </span>
+                                    )}
+                                  </div>
                                 </div>
                                 <div style={{ borderTop: '1px solid rgba(255,255,255,0.2)', paddingTop: '10px', marginTop: '5px' }}>
                                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                                     <span>Est. Wait Time:</span>
-                                    <span style={{ fontWeight: 600 }}>{calculateWaitTime(booking.appointmentNumber, booking.currentlyServingToken || 0)}</span>
+                                    <span style={{ fontWeight: 600 }}>{calculateWaitTime(booking.appointmentNumber, booking.currentlyServingToken || 0, booking.status, booking.currentlyServingPriority || 'Routine')}</span>
                                   </div>
                                 </div>
                               </div>
@@ -237,6 +305,16 @@ const Appointments: React.FC = () => {
                                 ) : (
                                   <p>No prescription details provided.</p>
                                 )}
+                              </div>
+                            </div>
+                          )}
+
+                          {booking.status === 'Missed' && (
+                            <div style={{ flex: '1 1 300px' }}>
+                              <h4 style={{ marginBottom: '10px', color: '#334155' }}>Attendance Status</h4>
+                              <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0', height: 'calc(100% - 35px)' }}>
+                                <p style={{ color: '#ef4444', fontWeight: 600, marginBottom: '8px' }}>Appointment Missed</p>
+                                <p>You did not attend this scheduled appointment. Please book a new session if you still require a consultation.</p>
                               </div>
                             </div>
                           )}

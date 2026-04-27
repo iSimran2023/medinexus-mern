@@ -7,23 +7,34 @@ import { flattenAppointment, flattenDoctor, flattenSchedule, flattenPatient } fr
 
 export const getPatientStats = async (req: Request, res: Response) => {
   try {
+    const userId = (req as any).user.id;
+    const patient = await Patient.findOne({ user: userId });
+
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
     const doctorCount = await Doctor.countDocuments();
-    const patientCount = await Patient.countDocuments();
-    const appointmentCount = await Appointment.countDocuments({
-      createdAt: { $gte: new Date(new Date().setHours(0,0,0,0)) }
+    
+    // Patient's own data
+    const myTotalBookings = await Appointment.countDocuments({ patient: patient?._id });
+    
+    const myActiveBookings = await Appointment.countDocuments({ 
+      patient: patient?._id,
+      status: 'Pending'
     });
-    const todaySessions = await Schedule.countDocuments({
-      date: { 
-        $gte: new Date(new Date().setHours(0,0,0,0)), 
-        $lt: new Date(new Date().setHours(23,59,59,999)) 
-      }
+    
+    const myTodaySessions = await Appointment.countDocuments({
+      patient: patient?._id,
+      appointmentTime: { $gte: startOfToday, $lte: endOfToday }
     });
 
     res.json({
       doctors: doctorCount,
-      patients: patientCount,
-      appointments: appointmentCount,
-      sessions: todaySessions,
+      patients: myTotalBookings,
+      appointments: myActiveBookings,
+      sessions: myTodaySessions,
     });
   } catch (err) {
     res.status(500).json({ message: 'Error fetching patient stats' });
@@ -36,11 +47,16 @@ export const getMyBookings = async (req: Request, res: Response) => {
     const patient = await Patient.findOne({ user: userId });
     if (!patient) return res.status(404).json({ message: 'Patient not found' });
 
-    // Only fetch non-cancelled appointments so rescheduled ones disappear from the list
-    const bookings = await Appointment.find({ 
+    const { scheduleId } = req.query;
+    const query: any = { 
       patient: patient._id,
       status: { $ne: 'Cancelled' }
-    })
+    };
+    if (scheduleId) query.schedule = scheduleId;
+
+    // Fetch non-cancelled appointments and sort by newest first
+    const bookings = await Appointment.find(query)
+      .sort({ createdAt: -1 })
       .populate({
         path: 'patient',
         populate: { path: 'user', select: 'name email' }
@@ -48,8 +64,7 @@ export const getMyBookings = async (req: Request, res: Response) => {
       .populate({
         path: 'schedule',
         populate: { path: 'doctor', populate: { path: 'user', select: 'name' } }
-      })
-      .sort({ createdAt: -1 });
+      });
 
     res.json(bookings.map(flattenAppointment));
   } catch (err) {
@@ -84,6 +99,10 @@ export const bookAppointment = async (req: Request, res: Response) => {
       return res.status(400).json({ message: 'Session is full' });
     }
 
+    const appointmentDateTime = new Date(schedule.date);
+    const [hours, minutes] = schedule.time.split(':');
+    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
     const newAppointment = await Appointment.create({
       patient: patient._id,
       schedule: scheduleId,
@@ -91,6 +110,7 @@ export const bookAppointment = async (req: Request, res: Response) => {
       medicalData,
       priority: priority || 'Routine',
       status: 'Pending',
+      appointmentTime: appointmentDateTime,
     });
 
     const populated = await newAppointment.populate([
@@ -293,19 +313,25 @@ export const rescheduleAppointment = async (req: Request, res: Response) => {
     const lastAppointment = await Appointment.findOne({ schedule: scheduleId }).sort({ appointmentNumber: -1 });
     const nextNumber = lastAppointment ? lastAppointment.appointmentNumber + 1 : 1;
 
-    // Cancel old appointment
-    appointment.status = 'Cancelled';
-    await appointment.save();
+    // 1. Mark the OLD appointment as 'Rescheduled'
+    await Appointment.updateOne({ _id: id }, { $set: { status: 'Rescheduled' } });
 
-    // Create new appointment
-    await Appointment.create({
+    const appointmentDateTime = new Date(newSchedule.date);
+    const [hours, minutes] = newSchedule.time.split(':');
+    appointmentDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+    // 2. Create the NEW appointment as 'Pending'
+    const newAppointment = new Appointment({
       patient: appointment.patient,
       schedule: scheduleId,
       appointmentNumber: nextNumber,
       medicalData: medicalData || appointment.medicalData,
       priority: priority || appointment.priority,
-      status: 'Rescheduled',
+      status: 'Pending',
+      appointmentTime: appointmentDateTime,
     });
+    
+    await newAppointment.save();
 
     res.json({ message: 'Appointment rescheduled successfully' });
   } catch (err) {

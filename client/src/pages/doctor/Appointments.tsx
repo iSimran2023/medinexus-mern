@@ -2,8 +2,10 @@ import React, { useState } from 'react';
 import DashboardLayout from '../../components/DashboardLayout';
 import ConfirmModal from '../../components/ConfirmModal';
 import { useFetch } from '../../hooks/useFetch';
-import { Trash2, Printer, ChevronDown, ChevronUp, Eye, CalendarX, CheckCircle2, Clock } from 'lucide-react';
+import { Trash2, Printer, ChevronDown, ChevronUp, Eye, CalendarX, CheckCircle2, Clock, Calendar } from 'lucide-react';
 import { printAppointmentPdf } from '../../utils/printPdf';
+import { formatApptNumber } from '../../utils/formatters';
+import MedicalHistoryDisplay from '../../components/MedicalHistoryDisplay';
 import api from '../../services/api';
 import '../../styles/dashboard.css';
 import { useToast } from '../../context/ToastContext';
@@ -26,7 +28,7 @@ interface Appointment {
   symptoms: string;
   history: string;
   document: string;
-  status: 'Pending' | 'Reviewed';
+  status: 'Pending' | 'Reviewed' | 'Missed' | 'Rescheduled' | 'Cancelled';
   gender?: string;
   prescription?: {
     diagnosis: string;
@@ -39,7 +41,10 @@ interface Appointment {
 const VITE_BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
 
 const Appointments: React.FC = () => {
-  const { data: appointments, loading, setData } = useFetch<Appointment[]>('/doctor/appointments');
+  const [activeTab, setActiveTab] = useState<'Pending' | 'Rescheduled' | 'Reviewed' | 'Missed' | 'Cancelled'>('Pending');
+  const [selectedScheduleId, setSelectedScheduleId] = useState<string>('');
+  const { data: schedules } = useFetch<any[]>('/doctor/sessions');
+  const { data: appointments, loading, setData } = useFetch<Appointment[]>(`/doctor/appointments?status=${activeTab}${selectedScheduleId ? `&scheduleId=${selectedScheduleId}` : ''}`);
   const { showToast } = useToast();
   
   // Modal State
@@ -47,7 +52,6 @@ const Appointments: React.FC = () => {
   const [isReviewConfirmOpen, setIsReviewConfirmOpen] = useState(false);
   const [pendingActionId, setPendingActionId] = useState('');
   const [expandedRow, setExpandedRow] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'Pending' | 'Reviewed'>('Pending');
   
   // Prescription Form State
   const [prescription, setPrescription] = useState({
@@ -88,16 +92,16 @@ const Appointments: React.FC = () => {
     }
   };
 
-  const updateServingToken = async (scheduleId: string, tokenNumber: number) => {
+  const updateServingToken = async (scheduleId: string, tokenNumber: number, date: string) => {
     try {
       await api.put('/doctor/sessions/serving-token', { scheduleId, tokenNumber });
-      showToast(`Now serving token #${tokenNumber}`, 'success');
+      showToast(`Now serving ${formatApptNumber(date, tokenNumber)}`, 'success');
     } catch (err) {
       showToast('Error updating serving token', 'error');
     }
   };
 
-  const filteredByTab = appointments?.filter(a => activeTab === 'Pending' ? (a.status === 'Pending' || a.status === 'Rescheduled') : a.status === activeTab);
+  const filteredByTab = appointments;
 
   const confirmCancel = async () => {
     try {
@@ -116,11 +120,29 @@ const Appointments: React.FC = () => {
 
   return (
     <DashboardLayout title="">
-      <div className="content-header" style={{ marginBottom: '0' }}>
+      <div className="content-header" style={{ marginBottom: '0', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <h2 className="heading-main">Appointment Manager</h2>
+        
+        <div className="header-controls">
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '14px', fontWeight: 600, color: '#64748b' }}>Filter by Session:</span>
+            <select 
+              className="filter-dropdown" 
+              value={selectedScheduleId}
+              onChange={(e) => setSelectedScheduleId(e.target.value)}
+            >
+              <option value="">All Sessions</option>
+              {schedules?.map(s => (
+                <option key={s.id} value={s.id}>
+                  {s.title} - {new Date(s.date).toLocaleDateString()} @{s.time}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
       </div>
 
-      <div className="tabs-container" style={{ display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0' }}>
+      <div className="tabs-container" style={{ display: 'flex', gap: '20px', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', marginTop: '20px' }}>
         <button 
           onClick={() => setActiveTab('Pending')}
           style={{ 
@@ -139,6 +161,23 @@ const Appointments: React.FC = () => {
           <Clock size={18} /> Pending Appointments
         </button>
         <button 
+          onClick={() => setActiveTab('Rescheduled')}
+          style={{ 
+            padding: '12px 20px', 
+            border: 'none', 
+            background: 'none', 
+            cursor: 'pointer',
+            color: activeTab === 'Rescheduled' ? 'var(--primary-color)' : '#64748b',
+            borderBottom: activeTab === 'Rescheduled' ? '2px solid var(--primary-color)' : '2px solid transparent',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Calendar size={18} /> Rescheduled Appointments
+        </button>
+        <button 
           onClick={() => setActiveTab('Reviewed')}
           style={{ 
             padding: '12px 20px', 
@@ -153,17 +192,52 @@ const Appointments: React.FC = () => {
             gap: '8px'
           }}
         >
-          <CheckCircle2 size={18} /> Reviewed History
+          <CheckCircle2 size={18} /> Reviewed Appointments
+        </button>
+        <button 
+          onClick={() => setActiveTab('Missed')}
+          style={{ 
+            padding: '12px 20px', 
+            border: 'none', 
+            background: 'none', 
+            cursor: 'pointer',
+            color: activeTab === 'Missed' ? 'var(--primary-color)' : '#64748b',
+            borderBottom: activeTab === 'Missed' ? '2px solid var(--primary-color)' : '2px solid transparent',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <CalendarX size={18} /> Missed Appointments
+        </button>
+        <button 
+          onClick={() => setActiveTab('Cancelled')}
+          style={{ 
+            padding: '12px 20px', 
+            border: 'none', 
+            background: 'none', 
+            cursor: 'pointer',
+            color: activeTab === 'Cancelled' ? 'var(--primary-color)' : '#64748b',
+            borderBottom: activeTab === 'Cancelled' ? '2px solid var(--primary-color)' : '2px solid transparent',
+            fontWeight: 600,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '8px'
+          }}
+        >
+          <Trash2 size={18} /> Cancelled Appointments
         </button>
       </div>
 
-      <div className="table-container">
-        <table className="sub-table" style={{ width: '100%' }}>
+      <div className="table-container" style={{ overflowX: 'auto' }}>
+        <table className="sub-table" style={{ width: '100%', minWidth: '800px' }}>
           <thead>
             <tr>
               <th className="table-headin">Patient Name</th>
               <th className="table-headin">Appoint. Number</th>
               <th className="table-headin">Priority</th>
+              <th className="table-headin">Status</th>
               <th className="table-headin">Session Details</th>
               <th className="table-headin">Booking Confirmed At</th>
               <th className="table-headin">Events</th>
@@ -171,10 +245,10 @@ const Appointments: React.FC = () => {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
+              <tr><td colSpan={7} style={{ textAlign: 'center', padding: '20px' }}>Loading...</td></tr>
             ) : filteredByTab?.length === 0 ? (
               <tr>
-                <td colSpan={6} style={{ textAlign: 'center', padding: '80px 20px' }}>
+                <td colSpan={7} style={{ textAlign: 'center', padding: '80px 20px' }}>
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '15px' }}>
                     <div style={{ padding: '20px', background: '#f8fafc', borderRadius: '50%', color: '#94a3b8' }}>
                       <CalendarX size={48} strokeWidth={1.5} />
@@ -188,11 +262,24 @@ const Appointments: React.FC = () => {
                 <tr key={app.id}>
                   <td style={{ padding: '15px', fontWeight: 600 }}>{app.patientName || 'N/A'}</td>
                   <td style={{ fontWeight: 600, color: 'var(--primary-color)' }}>
-                    {app.appointmentNumber}
+                    {formatApptNumber(app.scheduleDate, app.appointmentNumber)}
                   </td>
                   <td>
-                    {app.priority === 'Emergency' && <span style={{ background: '#fef2f2', color: '#ef4444', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Emergency</span>}
-                    {(!app.priority || app.priority === 'Routine') && <span style={{ background: '#f1f5f9', color: '#64748b', padding: '4px 8px', borderRadius: '4px', fontSize: '12px', fontWeight: 600 }}>Routine</span>}
+                    {app.priority === 'Emergency' && <span className="priority-emergency">Emergency</span>}
+                    {(!app.priority || app.priority === 'Routine') && <span className="priority-routine">Routine</span>}
+                  </td>
+                  <td>
+                    {app.status === 'Reviewed' ? (
+                      <span className="badge badge-reviewed">Reviewed</span>
+                    ) : app.status === 'Missed' ? (
+                      <span className="badge badge-missed">Missed</span>
+                    ) : app.status === 'Rescheduled' ? (
+                      <span className="badge badge-rescheduled">Rescheduled</span>
+                    ) : app.status === 'Cancelled' ? (
+                      <span className="badge badge-cancelled">Cancelled</span>
+                    ) : (
+                      <span className="badge badge-pending">Pending</span>
+                    )}
                   </td>
                   <td>
                     <div style={{ display: 'flex', flexDirection: 'column' }}>
@@ -216,27 +303,27 @@ const Appointments: React.FC = () => {
                       >
                         {expandedRow === app.id ? <ChevronUp size={16} /> : <Eye size={16} />}
                       </button>
-                      {(activeTab === 'Pending' || activeTab === 'Rescheduled') && (
-                        <button 
-                          onClick={() => {
-                            updateServingToken(app.scheduleId!, app.appointmentNumber);
-                          }}
-                          className="btn-primary-soft btn-sm"
-                          style={{ color: '#8b5cf6', background: '#f5f3ff' }}
-                          title="Call Patient (Update Serving Token)"
-                        >
-                          <Clock size={16} />
-                        </button>
-                      )}
-                      {(activeTab === 'Pending' || activeTab === 'Rescheduled') && (
-                        <button 
-                          onClick={() => handleReviewClick(app.id)} 
-                          className="btn-primary-soft btn-sm" 
-                          style={{ color: '#10b981', background: '#ecfdf5' }}
-                          title="Complete & Prescribe"
-                        >
-                          <CheckCircle2 size={16} />
-                        </button>
+                      {app.status === 'Pending' && (
+                        <>
+                          <button 
+                            onClick={() => {
+                              updateServingToken(app.scheduleId!, app.appointmentNumber, app.scheduleDate!);
+                            }}
+                            className="btn-primary-soft btn-sm"
+                            style={{ color: '#8b5cf6', background: '#f5f3ff' }}
+                            title="Call Patient (Update Serving Token)"
+                          >
+                            <Clock size={16} />
+                          </button>
+                          <button 
+                            onClick={() => handleReviewClick(app.id)} 
+                            className="btn-primary-soft btn-sm" 
+                            style={{ color: '#10b981', background: '#ecfdf5' }}
+                            title="Complete & Prescribe"
+                          >
+                            <CheckCircle2 size={16} />
+                          </button>
+                        </>
                       )}
                       <button 
                         onClick={() => printAppointmentPdf(app)} 
@@ -245,7 +332,7 @@ const Appointments: React.FC = () => {
                       >
                         <Printer size={16} />
                       </button>
-                      {(activeTab === 'Pending' || activeTab === 'Rescheduled') && (
+                      {app.status === 'Pending' && (
                         <button 
                           onClick={() => handleCancelClick(app.id)} 
                           className="btn-primary-soft btn-sm btn-danger" 
@@ -280,7 +367,10 @@ const Appointments: React.FC = () => {
                             <h4 style={{ marginBottom: '10px', color: '#334155' }}>Full Medical Notes</h4>
                             <div style={{ fontSize: '13px', lineHeight: '1.6', color: '#64748b', background: '#fff', padding: '15px', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
                               <p style={{ marginBottom: '8px' }}><strong style={{ color: '#ef4444' }}>Symptoms:</strong><br/>{app.symptoms || 'None reported'}</p>
-                              <p style={{ marginBottom: '8px' }}><strong style={{ color: '#334155' }}>Medical History:</strong><br/>{app.history || 'None reported'}</p>
+                              <div style={{ marginBottom: '8px' }}>
+                                <strong style={{ color: '#334155' }}>Medical History:</strong>
+                                <MedicalHistoryDisplay historyString={app.history || ''} />
+                              </div>
                               {app.document && (
                                 <p>
                                   <strong style={{ color: '#334155' }}>Attached Document:</strong>{' '}

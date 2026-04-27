@@ -2,8 +2,9 @@ import React from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
-import { UserRound, Users, BookOpen, CalendarDays, Search } from 'lucide-react';
+import { UserRound, Users, BookOpen, CalendarDays, Search, Bookmark, Activity } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
+import { formatApptNumber } from '../../utils/formatters';
 import '../../styles/dashboard.css';
 
 interface Stats {
@@ -20,6 +21,7 @@ interface Booking {
   doctorName: string;
   scheduleDate: string;
   scheduleTime: string;
+  status: string;
 }
 
 const Dashboard: React.FC = () => {
@@ -35,11 +37,13 @@ const Dashboard: React.FC = () => {
     }
   };
 
+  const upcomingBookings = bookings?.filter(b => b.status === 'Pending') || [];
+
   const statConfig = [
-    { label: 'All Doctors', value: stats?.doctors || 0, icon: <UserRound /> },
-    { label: 'All Patients', value: stats?.patients || 0, icon: <Users /> },
-    { label: 'New Booking', value: stats?.appointments || 0, icon: <BookOpen /> },
-    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays /> },
+    { label: 'All Doctors', value: stats?.doctors || 0, icon: <UserRound />, link: '/patient/doctors' },
+    { label: 'Total Bookings', value: stats?.patients || 0, icon: <Bookmark />, link: '/patient/bookings' },
+    { label: 'Active Bookings', value: stats?.appointments || 0, icon: <Bookmark />, link: '/patient/bookings' },
+    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays />, link: '/patient/schedule' },
   ];
 
   return (
@@ -80,7 +84,7 @@ const Dashboard: React.FC = () => {
           <h2 className="section-title">Status</h2>
           <div className="stats-grid">
             {statConfig.map((stat, index) => (
-              <div key={index} className="stat-card">
+              <div key={index} className="stat-card" onClick={() => navigate(stat.link)} style={{ cursor: 'pointer' }}>
                 <div>
                   <div className="stat-value">{stat.value}</div>
                   <div className="stat-label">{stat.label}</div>
@@ -104,12 +108,12 @@ const Dashboard: React.FC = () => {
                 </tr>
               </thead>
               <tbody>
-                {bookings?.length === 0 ? (
+                {upcomingBookings.length === 0 ? (
                   <tr><td colSpan={4} style={{ textAlign: 'center', padding: '20px' }}>Nothing to show here!</td></tr>
                 ) : (
-                  bookings?.slice(0, 5).map((booking) => (
+                  upcomingBookings.slice(0, 5).map((booking) => (
                     <tr key={booking.id}>
-                      <td className="booking-number">{booking.appointmentNumber}</td>
+                      <td className="booking-number">{formatApptNumber(booking.scheduleDate, booking.appointmentNumber)}</td>
                       <td>{booking.scheduleTitle || 'Untitled Session'}</td>
                       <td>Dr. {booking.doctorName || 'Unknown'}</td>
                       <td>{booking.scheduleDate ? `${new Date(booking.scheduleDate).toLocaleDateString()} ${booking.scheduleTime}` : '-'}</td>

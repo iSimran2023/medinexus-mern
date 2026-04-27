@@ -84,6 +84,20 @@ const Schedule: React.FC = () => {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    
+    if (modalMode === 'add') {
+      const scheduleDateTime = new Date(formData.date);
+      if (formData.time) {
+        const [hours, minutes] = formData.time.split(':');
+        scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      }
+      
+      if (scheduleDateTime < new Date()) {
+        showToast('Cannot schedule a session in the past', 'error');
+        return;
+      }
+    }
+
     try {
       const response = await api.post('/admin/schedules', formData);
       showToast('Schedule created successfully', 'success');
@@ -205,6 +219,7 @@ const Schedule: React.FC = () => {
                 onChange={(e) => setFormData({...formData, date: e.target.value})} 
                 required 
                 disabled={modalMode === 'view'}
+                min={new Date().toISOString().split('T')[0]}
               />
             </div>
             <div className="form-group">

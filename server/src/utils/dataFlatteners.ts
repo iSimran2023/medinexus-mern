@@ -1,3 +1,5 @@
+import { formatApptNumber } from "./formatters";
+
 export const flattenAppointment = (app: any) => {
   return {
     id: app._id || app.id,
@@ -20,6 +22,9 @@ export const flattenAppointment = (app: any) => {
     history: app.medicalData?.history || null,
     document: app.medicalData?.documentName || null,
     status: app.status || 'Pending',
+    currentlyServingToken: app.schedule?.currentlyServingToken || 0,
+    currentlyServingTokenFull: formatApptNumber(app.schedule?.date, app.schedule?.currentlyServingToken || 0),
+    currentlyServingPriority: app.schedule?.currentlyServingPriority || 'Routine',
     prescription: app.prescription || { diagnosis: '', medications: [], notes: '' }
   };
 };
@@ -59,6 +64,8 @@ export const flattenSchedule = (sch: any) => {
     date: sch.date || null,
     time: sch.time || null,
     maxAppointments: sch.maxAppointments || 0,
-    currentlyServingToken: sch.currentlyServingToken || 0
+    currentlyServingToken: sch.currentlyServingToken || 0,
+    currentlyServingTokenFull: formatApptNumber(sch.date, sch.currentlyServingToken || 0),
+    currentlyServingPriority: sch.currentlyServingPriority || 'Routine'
   };
 };

@@ -11,6 +11,9 @@ import authRoutes from './routes/authRoutes';
 import adminRoutes from './routes/adminRoutes';
 import patientRoutes from './routes/patientRoutes';
 import doctorRoutes from './routes/doctorRoutes';
+import { startAttendanceCronJob } from './jobs/attendanceJob';
+
+startAttendanceCronJob();
 
 const app = express();
 const PORT = process.env.PORT || 5001;

@@ -36,8 +36,19 @@ const appointmentSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['Pending', 'Reviewed', 'Cancelled', 'Rescheduled'],
+    enum: ['Pending', 'Reviewed', 'Cancelled', 'Rescheduled', 'Missed'],
     default: 'Pending',
+  },
+  appointmentTime: {
+    type: Date,
+  },
+  doctorAttended: {
+    type: Boolean,
+    default: false,
+  },
+  patientAttended: {
+    type: Boolean,
+    default: false,
   },
 }, {
   timestamps: true,

@@ -1,6 +1,7 @@
 import React from 'react';
 import DashboardLayout from '../components/DashboardLayout';
 import { useFetch } from '../hooks/useFetch';
+import { formatApptNumber } from '../utils/formatters';
 import '../styles/dashboard.css';
 
 interface Booking {
@@ -51,7 +52,7 @@ const PatientAppointments: React.FC = () => {
               bookings?.map((booking) => (
                 <tr key={booking._id}>
                   <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--primary-color)' }}>
-                    {booking.appointmentNumber}
+                    {formatApptNumber(booking.schedule?.date, booking.appointmentNumber)}
                   </td>
                   <td style={{ fontWeight: 500 }}>{booking.schedule?.title || 'Untitled Session'}</td>
                   <td>Dr. {booking.schedule?.doctor?.user?.name || 'Unknown'}</td>

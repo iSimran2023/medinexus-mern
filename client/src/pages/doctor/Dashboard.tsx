@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { useAuth } from '../../context/AuthContext';
 import { UserRound, Users, BookOpen, CalendarDays } from 'lucide-react';
@@ -18,18 +19,34 @@ interface Appointment {
   patientName: string;
   scheduleDate: string;
   scheduleTime: string;
+  status: string;
 }
 
 const Dashboard: React.FC = () => {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { data: stats } = useFetch<Stats>('/doctor/stats');
   const { data: appointments } = useFetch<Appointment[]>('/doctor/appointments');
 
+  const upcomingAppointments = useMemo(() => {
+    const now = new Date();
+    return appointments?.filter(app => {
+      if (app.status !== 'Pending') return false;
+      
+      const apptDate = new Date(app.scheduleDate);
+      if (app.scheduleTime) {
+        const [hours, minutes] = app.scheduleTime.split(':');
+        apptDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      }
+      return apptDate >= now;
+    }) || [];
+  }, [appointments]);
+
   const statConfig = [
-    { label: 'All Doctors', value: stats?.doctors || 0, icon: <UserRound /> },
-    { label: 'All Patients', value: stats?.patients || 0, icon: <Users /> },
-    { label: 'New Booking', value: stats?.appointments || 0, icon: <BookOpen /> },
-    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays /> },
+    { label: 'All Doctors', value: stats?.doctors || 0, icon: <UserRound />, link: '#' },
+    { label: 'All Patients', value: stats?.patients || 0, icon: <Users />, link: '/doctor/patients' },
+    { label: 'New Booking', value: stats?.appointments || 0, icon: <BookOpen />, link: '/doctor/appointments' },
+    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays />, link: '/doctor/appointments' },
   ];
 
   return (
@@ -53,7 +70,7 @@ const Dashboard: React.FC = () => {
           <h2 className="section-title">Status</h2>
           <div className="stats-grid">
             {statConfig.map((stat, index) => (
-              <div key={index} className="stat-card">
+              <div key={index} className="stat-card" onClick={() => stat.link !== '#' && navigate(stat.link)} style={{ cursor: stat.link !== '#' ? 'pointer' : 'default' }}>
                 <div>
                   <div className="stat-value">{stat.value}</div>
                   <div className="stat-label">{stat.label}</div>
@@ -75,19 +92,19 @@ const Dashboard: React.FC = () => {
                   <th className="table-headin">Date & Time</th>
                 </tr>
               </thead>
-              <tbody>
-                {appointments?.length === 0 ? (
-                  <tr><td colSpan={3} style={{ textAlign: 'center', padding: '20px' }}>No upcoming sessions found.</td></tr>
-                ) : (
-                  appointments?.slice(0, 5).map((app) => (
-                    <tr key={app.id}>
-                      <td style={{ padding: '15px' }}>{app.scheduleTitle}</td>
-                      <td>{app.patientName}</td>
-                      <td>{new Date(app.scheduleDate).toLocaleDateString()} {app.scheduleTime}</td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
+                <tbody>
+                  {upcomingAppointments.length === 0 ? (
+                    <tr><td colSpan={3} style={{ textAlign: 'center', padding: '20px' }}>No upcoming sessions found.</td></tr>
+                  ) : (
+                    upcomingAppointments.slice(0, 5).map((app) => (
+                      <tr key={app.id}>
+                        <td style={{ padding: '15px' }}>{app.scheduleTitle}</td>
+                        <td>{app.patientName}</td>
+                        <td>{new Date(app.scheduleDate).toLocaleDateString()} {app.scheduleTime}</td>
+                      </tr>
+                    ))
+                  )}
+                </tbody>
             </table>
           </div>
         </div>

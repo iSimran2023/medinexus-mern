@@ -1,9 +1,13 @@
+import { formatApptNumber } from './formatters';
+
 export const printAppointmentPdf = (appointment: any) => {
   const printWindow = window.open('', '_blank', 'width=800,height=600');
   if (!printWindow) {
     alert("Please allow popups for this site to generate PDF");
     return;
   }
+
+  const VITE_BASE_URL = import.meta.env.VITE_API_URL.replace('/api', '');
 
   const parseHistoryString = (text: string) => {
     if (!text) return {};
@@ -38,7 +42,7 @@ export const printAppointmentPdf = (appointment: any) => {
     <!DOCTYPE html>
     <html>
     <head>
-      <title>Appointment Confirmation #${appointment.appointmentNumber}</title>
+      <title>Appointment Confirmation ${formatApptNumber(appointment.scheduleDate, appointment.appointmentNumber)}</title>
       <style>
         @page { margin: 0; size: auto; }
         body { font-family: 'Inter', -apple-system, sans-serif; padding: 20px 40px; margin: 0; color: #333; font-size: 13px; }
@@ -66,7 +70,7 @@ export const printAppointmentPdf = (appointment: any) => {
       <div class="content">
         <div class="row">
           <div class="label">Appointment Number</div>
-          <div class="value" style="font-size: 18px; color: #1969AA; font-weight: bold;">#${appointment.appointmentNumber}</div>
+          <div class="value" style="font-size: 18px; color: #1969AA; font-weight: bold;">${formatApptNumber(appointment.scheduleDate, appointment.appointmentNumber)}</div>
         </div>
         <div class="row">
           <div class="label">Patient Name</div>
@@ -133,7 +137,7 @@ export const printAppointmentPdf = (appointment: any) => {
         ${appointment.document ? `
         <div class="row">
           <div class="label">Attached File</div>
-          <div class="value"><a href="http://localhost:5001/uploads/${appointment.document}" target="_blank" style="color: #1969AA;">${appointment.document}</a></div>
+          <div class="value"><a href="${VITE_BASE_URL}/uploads/${appointment.document}" target="_blank" style="color: #1969AA;">${appointment.document}</a></div>
         </div>
         ` : ''}
 

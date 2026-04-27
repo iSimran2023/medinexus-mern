@@ -4,19 +4,22 @@ import Appointment from '../models/Appointment';
 import Doctor from '../models/Doctor';
 import Patient from '../models/Patient';
 import { flattenAppointment, flattenPatient, flattenSchedule } from '../utils/dataFlatteners';
+import { formatApptNumber } from '../utils/formatters';
 
 export const getDoctorStats = async (req: Request, res: Response) => {
   try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
     const doctorCount = await Doctor.countDocuments();
     const patientCount = await Patient.countDocuments();
     const appointmentCount = await Appointment.countDocuments({
-      date: { $gte: new Date() }
+      createdAt: { $gte: startOfToday, $lte: endOfToday }
     });
     const todaySessions = await Schedule.countDocuments({
-      date: { 
-        $gte: new Date(new Date().setHours(0,0,0,0)), 
-        $lt: new Date(new Date().setHours(23,59,59,999)) 
-      }
+      date: { $gte: startOfToday, $lte: endOfToday }
     });
 
     res.json({
@@ -52,11 +55,12 @@ export const getMySessions = async (req: Request, res: Response) => {
 export const getMyUpcomingAppointments = async (req: Request, res: Response) => {
   try {
     const userId = (req as any).user.id;
-    const { status } = req.query; // Optional filter by status
+    const { status, scheduleId } = req.query; // Optional filter by status or schedule
     const doctor = await Doctor.findOne({ user: userId });
     
-    const query: any = { status: { $ne: 'Cancelled' } };
+    const query: any = {};
     if (status) query.status = status;
+    if (scheduleId) query.schedule = scheduleId;
 
     const appointments = await Appointment.find(query)
       .populate({
@@ -130,10 +134,33 @@ export const markAppointmentReviewed = async (req: Request, res: Response) => {
   }
 };
 
+export const markAttendance = async (req: Request, res: Response) => {
+  try {
+    const { id } = req.params;
+    const { doctorAttended, patientAttended } = req.body;
+    
+    // Only update the fields that are provided
+    const updateData: any = {};
+    if (doctorAttended !== undefined) updateData.doctorAttended = doctorAttended;
+    if (patientAttended !== undefined) updateData.patientAttended = patientAttended;
+
+    const appointment = await Appointment.findByIdAndUpdate(
+      id,
+      updateData,
+      { new: true }
+    );
+    if (!appointment) return res.status(404).json({ message: 'Appointment not found' });
+    
+    res.json({ message: 'Attendance updated successfully', appointment });
+  } catch (err) {
+    res.status(500).json({ message: 'Error updating attendance' });
+  }
+};
+
 export const cancelAppointment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await Appointment.findByIdAndDelete(id);
+    await Appointment.findByIdAndUpdate(id, { status: 'Cancelled' });
     res.json({ message: 'Appointment cancelled successfully' });
   } catch (err) {
     res.status(500).json({ message: 'Error cancelling appointment' });
@@ -176,13 +203,30 @@ export const getMyPatients = async (req: Request, res: Response) => {
 export const updateServingToken = async (req: Request, res: Response) => {
   try {
     const { scheduleId, tokenNumber } = req.body;
+    
+    // Find the appointment with this token number to get its priority
+    const appointment = await Appointment.findOne({ 
+      schedule: scheduleId, 
+      appointmentNumber: tokenNumber 
+    });
+    
+    const priority = appointment ? (appointment.priority || 'Routine') : 'Routine';
+
     const schedule = await Schedule.findByIdAndUpdate(
       scheduleId,
-      { currentlyServingToken: tokenNumber },
+      { 
+        currentlyServingToken: tokenNumber,
+        currentlyServingPriority: priority
+      },
       { new: true }
     );
     if (!schedule) return res.status(404).json({ message: 'Schedule not found' });
-    res.json({ message: 'Serving token updated', currentlyServingToken: schedule.currentlyServingToken });
+    res.json({ 
+      message: 'Serving token updated', 
+      currentlyServingToken: schedule.currentlyServingToken,
+      currentlyServingTokenFull: formatApptNumber(schedule.date, schedule.currentlyServingToken),
+      currentlyServingPriority: schedule.currentlyServingPriority
+    });
   } catch (err) {
     res.status(500).json({ message: 'Error updating serving token' });
   }

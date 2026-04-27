@@ -23,6 +23,7 @@ const Doctors: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [modalMode, setModalMode] = useState<'add' | 'view' | 'edit'>('add');
+  const [selectedDoctor, setSelectedDoctor] = useState<Doctor | null>(null);
   const { showToast } = useToast();
   
   // Confirm Modal State
@@ -48,6 +49,7 @@ const Doctors: React.FC = () => {
   const handleOpenModal = (mode: 'add' | 'view' | 'edit', doctor?: Doctor) => {
     setModalMode(mode);
     if (doctor) {
+      setSelectedDoctor(doctor);
       setFormData({
         name: doctor.name,
         email: doctor.email,
@@ -58,6 +60,7 @@ const Doctors: React.FC = () => {
         confirmPassword: '',
       });
     } else {
+      setSelectedDoctor(null);
       setFormData({
         name: '',
         email: '',

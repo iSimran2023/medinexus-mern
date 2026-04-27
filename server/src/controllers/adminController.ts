@@ -8,10 +8,19 @@ import { flattenAppointment, flattenDoctor, flattenPatient, flattenSchedule } fr
 
 export const getStats = async (req: Request, res: Response) => {
   try {
+    const startOfToday = new Date();
+    startOfToday.setHours(0, 0, 0, 0);
+    const endOfToday = new Date();
+    endOfToday.setHours(23, 59, 59, 999);
+
     const doctorCount = await Doctor.countDocuments();
     const patientCount = await Patient.countDocuments();
-    const appointmentCount = await Appointment.countDocuments();
-    const scheduleCount = await Schedule.countDocuments();
+    const appointmentCount = await Appointment.countDocuments({
+      createdAt: { $gte: startOfToday, $lte: endOfToday }
+    });
+    const scheduleCount = await Schedule.countDocuments({
+      date: { $gte: startOfToday, $lte: endOfToday }
+    });
 
     res.json({
       doctors: doctorCount,
@@ -117,6 +126,17 @@ export const getSchedules = async (req: Request, res: Response) => {
 export const addSchedule = async (req: Request, res: Response) => {
   try {
     const { title, docid, date, time, nop } = req.body;
+
+    const scheduleDateTime = new Date(date);
+    if (time) {
+      const [hours, minutes] = time.split(':');
+      scheduleDateTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+    }
+
+    if (scheduleDateTime < new Date()) {
+      return res.status(400).json({ message: 'Cannot schedule a session in the past' });
+    }
+
     const newSchedule = await Schedule.create({
       title,
       doctor: docid,
@@ -155,7 +175,12 @@ export const getPatients = async (req: Request, res: Response) => {
 
 export const getAllAppointments = async (req: Request, res: Response) => {
   try {
-    const appointments = await Appointment.find()
+    const { scheduleId, status } = req.query;
+    const query: any = {};
+    if (scheduleId) query.schedule = scheduleId;
+    if (status) query.status = status;
+
+    const appointments = await Appointment.find(query)
       .populate({
         path: 'patient',
         populate: { path: 'user', select: 'name' }
@@ -170,12 +195,12 @@ export const getAllAppointments = async (req: Request, res: Response) => {
     res.status(500).json({ message: 'Error fetching appointments' });
   }
 };
-export const deleteAppointment = async (req: Request, res: Response) => {
+export const cancelAppointment = async (req: Request, res: Response) => {
   try {
     const { id } = req.params;
-    await Appointment.findByIdAndDelete(id);
-    res.json({ message: 'Appointment deleted successfully' });
+    await Appointment.findByIdAndUpdate(id, { status: 'Cancelled' });
+    res.json({ message: 'Appointment cancelled successfully' });
   } catch (err) {
-    res.status(500).json({ message: 'Error deleting appointment' });
+    res.status(500).json({ message: 'Error cancelling appointment' });
   }
 };

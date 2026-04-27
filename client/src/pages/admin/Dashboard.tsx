@@ -1,7 +1,10 @@
 import React, { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import DashboardLayout from '../../components/DashboardLayout';
 import { UserRound, Users, BookOpen, CalendarDays, ExternalLink } from 'lucide-react';
 import { useFetch } from '../../hooks/useFetch';
+import { formatApptNumber } from '../../utils/formatters';
+import '../../styles/dashboard.css';
 
 interface Stats {
   doctors: number;
@@ -15,6 +18,8 @@ interface Appointment {
   patientName: string;
   scheduleTitle: string;
   appointmentNumber: number;
+  scheduleDate: string;
+  status: string;
 }
 
 interface Schedule {
@@ -22,6 +27,7 @@ interface Schedule {
   title: string;
   doctorName: string;
   date: string;
+  time: string;
 }
 
 const Dashboard: React.FC = () => {
@@ -29,18 +35,42 @@ const Dashboard: React.FC = () => {
   const { data: appointments } = useFetch<Appointment[]>('/admin/appointments');
   const { data: schedules } = useFetch<Schedule[]>('/admin/schedules');
 
+  const upcomingAppointments = useMemo(() => 
+    appointments?.filter(app => app.status === 'Pending') || [], 
+    [appointments]
+  );
+
+  const upcomingSchedules = useMemo(() => {
+    const now = new Date();
+    const nextWeek = new Date();
+    nextWeek.setDate(now.getDate() + 7);
+    
+    return schedules?.filter(s => {
+      const schDate = new Date(s.date);
+      // Combine date and time
+      if (s.time) {
+        const [hours, minutes] = s.time.split(':');
+        schDate.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+      }
+      
+      return schDate >= now && schDate <= nextWeek;
+    }) || [];
+  }, [schedules]);
+
   const statConfig = useMemo(() => [
-    { label: 'Doctors', value: stats?.doctors || 0, icon: <UserRound /> },
-    { label: 'Patients', value: stats?.patients || 0, icon: <Users /> },
-    { label: 'New Booking', value: stats?.appointments || 0, icon: <BookOpen /> },
-    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays /> },
+    { label: 'Doctors', value: stats?.doctors || 0, icon: <UserRound />, link: '/admin/doctors' },
+    { label: 'Patients', value: stats?.patients || 0, icon: <Users />, link: '/admin/patients' },
+    { label: 'New Booking', value: stats?.appointments || 0, icon: <BookOpen />, link: '/admin/appointments' },
+    { label: 'Today Sessions', value: stats?.sessions || 0, icon: <CalendarDays />, link: '/admin/schedule' },
   ], [stats]);
+
+  const navigate = useNavigate();
 
   return (
     <DashboardLayout title="Dashboard">
       <div className="stats-grid">
         {statConfig.map((stat, index) => (
-          <div key={index} className="stat-card">
+          <div key={index} className="stat-card" onClick={() => navigate(stat.link)} style={{ cursor: 'pointer' }}>
             <div>
               <div className="stat-value">{statsLoading ? '...' : stat.value}</div>
               <div className="stat-label">{stat.label}</div>
@@ -63,7 +93,7 @@ const Dashboard: React.FC = () => {
           </div>
           
           <div style={{ width: '100%', minHeight: '200px' }}>
-            {appointments && appointments.length > 0 ? (
+            {upcomingAppointments.length > 0 ? (
               <table className="sub-table">
                 <thead>
                   <tr>
@@ -73,11 +103,11 @@ const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {appointments.slice(0, 5).map(app => (
+                  {upcomingAppointments.slice(0, 5).map(app => (
                     <tr key={app.id}>
                       <td style={{ padding: '12px 20px' }}>{app.patientName || 'Unknown'}</td>
                       <td style={{ padding: '12px 20px' }}>{app.scheduleTitle || 'Session'}</td>
-                      <td style={{ padding: '12px 20px', fontWeight: 600 }}>{app.appointmentNumber}</td>
+                      <td style={{ padding: '12px 20px', fontWeight: 600 }}>{formatApptNumber(app.scheduleDate, app.appointmentNumber)}</td>
                     </tr>
                   ))}
                 </tbody>
@@ -102,7 +132,7 @@ const Dashboard: React.FC = () => {
           </div>
 
           <div style={{ width: '100%', minHeight: '200px' }}>
-            {schedules && schedules.length > 0 ? (
+            {upcomingSchedules.length > 0 ? (
               <table className="sub-table">
                 <thead>
                   <tr>
@@ -112,7 +142,7 @@ const Dashboard: React.FC = () => {
                   </tr>
                 </thead>
                 <tbody>
-                  {schedules.slice(0, 5).map(sch => (
+                  {upcomingSchedules.slice(0, 5).map(sch => (
                     <tr key={sch.id}>
                       <td style={{ padding: '12px 20px' }}>{sch.title}</td>
                       <td style={{ padding: '12px 20px' }}>Dr. {sch.doctorName || 'Unknown'}</td>

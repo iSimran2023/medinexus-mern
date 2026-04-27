@@ -6,12 +6,18 @@ import {
   CalendarDays, 
   BookOpen, 
   Users, 
-  LogOut 
+  LogOut,
+  X 
 } from 'lucide-react';
 import { useAuth } from '../context/AuthContext';
 import '../styles/dashboard.css';
 
-const Sidebar: React.FC = () => {
+interface SidebarProps {
+  isOpen?: boolean;
+  onClose?: () => void;
+}
+
+const Sidebar: React.FC<SidebarProps> = ({ isOpen, onClose }) => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
@@ -55,33 +61,40 @@ const Sidebar: React.FC = () => {
   };
 
   return (
-    <div className="sidebar">
-      <div className="profile-card">
-        <div className="profile-image">
-          <img src="/img/user.png" alt="User" />
-        </div>
-        <div className="profile-info">
-          <p className="profile-name">{user?.name}</p>
-          <p className="profile-email">{user?.email}</p>
-        </div>
-        <button onClick={handleLogout} className="logout-btn">
-          <LogOut size={16} /> Log out
+    <>
+      {isOpen && <div className="sidebar-overlay" onClick={onClose} />}
+      <div className={`sidebar ${isOpen ? 'mobile-open' : ''}`}>
+        <button className="sidebar-close" onClick={onClose}>
+          <X size={24} />
         </button>
-      </div>
+        <div className="profile-card">
+          <div className="profile-image">
+            <img src="/img/user.png" alt="User" />
+          </div>
+          <div className="profile-info">
+            <p className="profile-name">{user?.name}</p>
+            <p className="profile-email">{user?.email}</p>
+          </div>
+          <button onClick={handleLogout} className="logout-btn">
+            <LogOut size={16} /> Log out
+          </button>
+        </div>
 
-      <nav className="sidebar-nav">
-        {getMenuItems().map((item) => (
-          <Link 
-            key={item.path} 
-            to={item.path} 
-            className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
-          >
-            <span className="menu-icon">{item.icon}</span>
-            <span className="menu-text">{item.label}</span>
-          </Link>
-        ))}
-      </nav>
-    </div>
+        <nav className="sidebar-nav">
+          {getMenuItems().map((item) => (
+            <Link 
+              key={item.path} 
+              to={item.path} 
+              className={`menu-item ${location.pathname === item.path ? 'active' : ''}`}
+              onClick={onClose}
+            >
+              <span className="menu-icon">{item.icon}</span>
+              <span className="menu-text">{item.label}</span>
+            </Link>
+          ))}
+        </nav>
+      </div>
+    </>
   );
 };
 

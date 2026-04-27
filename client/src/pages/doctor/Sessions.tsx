@@ -4,6 +4,7 @@ import Modal from '../../components/Modal';
 import { useFetch } from '../../hooks/useFetch';
 import { Eye } from 'lucide-react';
 import { LayoutGrid } from 'lucide-react';
+import { formatApptNumber } from '../../utils/formatters';
 import '../../styles/dashboard.css';
 
 interface Schedule {
@@ -28,9 +29,11 @@ const Sessions: React.FC = () => {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedSessionApps, setSelectedSessionApps] = useState<Appointment[]>([]);
   const [selectedSessionTitle, setSelectedSessionTitle] = useState('');
+  const [selectedSessionDate, setSelectedSessionDate] = useState('');
 
   const handleViewPatients = (session: Schedule) => {
     setSelectedSessionTitle(session.title);
+    setSelectedSessionDate(session.date);
     const sessionApps = allAppointments?.filter(app => app.scheduleId === session.id) || [];
     setSelectedSessionApps(sessionApps);
     setIsModalOpen(true);
@@ -117,8 +120,8 @@ const Sessions: React.FC = () => {
               ) : (
                 selectedSessionApps.sort((a, b) => a.appointmentNumber - b.appointmentNumber).map((app) => (
                   <tr key={app.id}>
-                    <td style={{ fontWeight: 'bold', color: 'var(--primary-color)' }}>
-                      {app.appointmentNumber}
+                    <td style={{ textAlign: 'center', fontWeight: 'bold', color: 'var(--primary-color)' }}>
+                      {formatApptNumber(selectedSessionDate, app.appointmentNumber)}
                     </td>
                     <td style={{ padding: '10px' }}>{app.patientName || 'Unknown'}</td>
                     <td>{app.patientPhone || '-'}</td>

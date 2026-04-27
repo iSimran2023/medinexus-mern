@@ -27,6 +27,10 @@ const scheduleSchema = new mongoose.Schema({
     type: Number,
     default: 0,
   },
+  currentlyServingPriority: {
+    type: String,
+    default: 'Routine',
+  },
 }, {
   timestamps: true,
 });
